@@ -284,7 +284,7 @@ For the [WebXR companion](../vr/), open the HTTPS page in a browser that support
 | Backward PD | Backward PD with the reaction path enabled. |
 | Cannon point joint | Native solver connection concept; not a ConfigurableJoint reproduction. |
 
-The browser’s point joint uses a shared custom angular PD controller. It does **not** implement Unity’s Slerp drive or the complete PhysX ConfigurableJoint. Explore force paths and controller behavior in the browser, then validate the Unity implementation separately.
+The browser’s point joint leaves rotation **free**, with no angular motor. The three PD modes apply a custom object-orientation drive, so this rotational difference is a capability difference, not evidence that one implementation tracks better under identical constraints. The point-joint cap applies separately to each Cartesian constraint axis; the PD cap applies to the force vector’s magnitude. Cannon does **not** implement Unity’s Slerp drive or the complete PhysX ConfigurableJoint. Explore the force paths in the browser, then validate the Unity implementation separately.
 
 ### Acceptance checklist before sharing a build
 

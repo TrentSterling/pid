@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Generated from tutorial/tutorial.md by scripts/build-tutorial.mjs. Source SHA-256: c6171cdb5a2f2aa9281c59c66f3625813aef223a6346f5259056eb50bc6dd0ed -->
+<!-- Generated from tutorial/tutorial.md by scripts/build-tutorial.mjs. Source SHA-256: fb01f39f9d05a57548723554a4e96b069669ad503aa1e9afd6a00cf447dedae2 -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -463,7 +463,7 @@ Vector3 acceleration = (kp * g) * error
 </tr>
 </tbody></table>
 </div><div class="table-hint" aria-hidden="true">Swipe or scroll horizontally to see the full table</div></div>
-<p>The browser’s point joint uses a shared custom angular PD controller. It does <strong>not</strong> implement Unity’s Slerp drive or the complete PhysX ConfigurableJoint. Explore force paths and controller behavior in the browser, then validate the Unity implementation separately.</p>
+<p>The browser’s point joint leaves rotation <strong>free</strong>, with no angular motor. The three PD modes apply a custom object-orientation drive, so this rotational difference is a capability difference, not evidence that one implementation tracks better under identical constraints. The point-joint cap applies separately to each Cartesian constraint axis; the PD cap applies to the force vector’s magnitude. Cannon does <strong>not</strong> implement Unity’s Slerp drive or the complete PhysX ConfigurableJoint. Explore the force paths in the browser, then validate the Unity implementation separately.</p>
 <h3 id="acceptance-checklist-before-sharing-a-build" tabindex="-1">Acceptance checklist before sharing a build<a class="heading-link" href="#acceptance-checklist-before-sharing-a-build" aria-label="Link to Acceptance checklist before sharing a build">#</a></h3>
 <ul>
 <li><input disabled="" type="checkbox"> Fresh Unity import compiles without errors; generated scene and action references are present.</li>

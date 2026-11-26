@@ -129,11 +129,12 @@ export class LabView {
     this.controls.enabled=!active;
     if(this.xrPanel) this.xrPanel.visible=active;
     if(active) { this.camera.position.set(0,0,0);this.camera.quaternion.identity(); }
-    else { this.rig.position.set(0,0,0);this.rig.quaternion.identity();this.fit(false); }
+    else { this.rig.position.set(0,0,0);this.rig.quaternion.identity();this.fit(this.lastFitClose??true); }
   }
 
   fit(close=false) {
     if(this.renderer?.xr.isPresenting) return;
+    this.lastFitClose=close;
     this.controls.target.set(0,.95,.55);
     if(close) this.camera.position.set(2.2,2.25,3.65);
     else this.camera.position.set(4.6,3.15,6.3);

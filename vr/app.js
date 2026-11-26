@@ -1,11 +1,12 @@
-import { GrabLab, MODES, DEFAULTS, CANNON } from './physics.js';
-import { LabView } from './view.js';
+import { GrabLab, MODES, DEFAULTS, CANNON } from './physics.js?v=3.0.1';
+import { LabView } from './view.js?v=3.0.1';
 
 const $=id=>document.getElementById(id);
 const text=(id,value)=>{const e=$(id);if(e.textContent!==String(value))e.textContent=String(value);};
 const lab=new GrabLab({scripted:true});
-let paused=false,slow=false,selectedHand=0,closeView=false;
+let paused=false,slow=false,selectedHand=0,closeView=true;
 let lastFrame=0,accumulator=0,lastUI=0,lastFPS=0,frames=0,traceClock=0;
+let physicsCPU=0,viewCPU=0,timedFrames=0;
 let xrSession=null,xrTracking=true,sessionListeners=null,toastTimer;
 const keys=new Set(),grips=new Map(),faceButtons=new Map(),xrPoseHistory=new Map();
 const identity=()=>({x:0,y:0,z:0,w:1});
@@ -71,7 +72,8 @@ function setGuided(enabled){
  $('guided').classList.toggle('active',enabled);$('manual').classList.toggle('active',!enabled);$('guided').setAttribute('aria-pressed',String(enabled));$('manual').setAttribute('aria-pressed',String(!enabled));$('manual-panel').hidden=enabled;
  text('stage-title',enabled?'Guided workout':'Manual hands');
  $('scene-hint').querySelector('b').textContent=enabled?'Watch the cube. Then switch the controller.':'Reach for a cube. Grip, then move the hand.';
- $('scene-hint').querySelector('div>span').textContent=enabled?'The guided hand repeats the same pickup, shake, and release.':'WASD moves the player. The sliders move your selected hand.';
+ $('scene-hint').querySelector('.hint-number').textContent=enabled?'01':'02';
+ $('scene-hint').querySelector(':scope > div > span').textContent=enabled?'The guided hand repeats the same pickup, shake, and release.':'WASD moves the player. The sliders move your selected hand.';
  updateManualControls();
 }
 function reset(){
@@ -220,8 +222,9 @@ function drawTrace(){
 }
 
 function frame(time,xrFrame){
+ const frameStart=performance.now();
  const elapsed=lastFrame?Math.min(.1,(time-lastFrame)/1000):0;lastFrame=time;frames++;
- if(time-lastFPS>1000){text('fps',`${Math.round(frames*1000/(time-lastFPS))} fps`);frames=0;lastFPS=time;}
+ if(time-lastFPS>1000){text('fps',`${Math.round(frames*1000/(time-lastFPS))} fps`);$('fps').title=`Average CPU per frame: ${(physicsCPU/Math.max(1,timedFrames)).toFixed(1)} ms physics · ${(viewCPU/Math.max(1,timedFrames)).toFixed(1)} ms view. Excludes GPU time.`;frames=0;lastFPS=time;physicsCPU=viewCPU=timedFrames=0;}
  let canStep=!paused&&!document.hidden;
  if(xrSession)canStep=sampleXR(xrFrame,time);
  if(canStep){
@@ -230,10 +233,11 @@ function frame(time,xrFrame){
    while(accumulator>=fixed&&count<9){if(!xrSession)stepDesktop(fixed);lab.step(fixed);accumulator-=fixed;count++;traceClock+=fixed;}
    if(count===9)accumulator=0;
  }else accumulator=0;
- view.update(elapsed,time);
+ const viewStart=performance.now();physicsCPU+=viewStart-frameStart;
+ view.update(elapsed,time);viewCPU+=performance.now()-viewStart;timedFrames++;
  if(time-lastUI>=50){updateUI();if(canStep&&(trace.at(-1)?.t??-1)<traceClock)trace.push({t:traceClock,value:lab.metrics.gapCm,mode:lab.mode});while(trace.length>220||trace[0]?.t<traceClock-10)trace.shift();drawTrace();lastUI=time;}
  if(!view.renderer)requestAnimationFrame(frame);
 }
 
-view.fit();updateManualControls();updateUI();checkXR();
+view.fit(closeView);text('camera','Room view');updateManualControls();updateUI();checkXR();
 if(view.renderer)view.renderer.setAnimationLoop(frame);else requestAnimationFrame(frame);

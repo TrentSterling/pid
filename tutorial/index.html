@@ -1,0 +1,551 @@
+<!doctype html>
+<!-- Generated from tutorial/tutorial.md by scripts/build-tutorial.mjs. Source SHA-256: c6171cdb5a2f2aa9281c59c66f3625813aef223a6346f5259056eb50bc6dd0ed -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c131c">
+  <meta name="description" content="Build a Unity 6 OpenXR VR grabbing lab. Compare ConfigurableJoint, relative PD and backward PD while holding the same object, with C# starter code and a WebXR companion.">
+  <meta property="og:title" content="VR Grabbing Tutorial · Physics Gym · Tront">
+  <meta property="og:description" content="A complete Unity C# guide to hand locomotion, physical grabbing, joint frames and live controller A/B tests.">
+  <meta property="og:type" content="article">
+  <title>VR Grabbing Tutorial · Physics Gym · Tront</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#tutorial-content">Skip to tutorial</a>
+  <div class="reading-progress" aria-hidden="true"><span id="reading-progress"></span></div>
+  <div class="shell">
+    <header class="masthead">
+      <a class="brand" href="../" aria-label="Physics Gym home"><span class="brand-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><b>PHYSICS GYM</b><small>TRONT / INTERACTION LABS</small></span></a>
+      <nav aria-label="Main navigation"><a href="../">Controller Gym</a><a href="../vr/">Grab Lab</a><a href="./" aria-current="page">Unity Tutorial</a><a href="https://github.com/TrentSterling/pid">GitHub <span aria-hidden="true">↗</span></a></nav>
+    </header>
+
+    <section class="hero" aria-labelledby="tutorial-title">
+      <div class="hero-copy">
+        <p class="eyebrow">THE UNITY FIELD GUIDE <span aria-hidden="true">/</span> 01</p>
+        <h1 id="tutorial-title">VR grabbing lab<span>locomotion, physical props, live controller A/B</span></h1>
+        <div class="guide-meta"><span>Unity 6 + OpenXR</span><span>22 min read</span><span>6 runtime scripts + Editor tools</span></div>
+        <div class="hero-actions"><a class="button primary" href="../downloads/TrontPhysicsGym-Unity.zip" download><span aria-hidden="true">↓</span> Download Unity kit</a><a class="button secondary" href="../vr/">Open WebXR demo <span aria-hidden="true">↗</span></a></div>
+      </div>
+      <aside class="experiment-card" aria-labelledby="experiment-title">
+        <p class="eyebrow">ONE OBJECT. SAME GRIP.</p>
+        <h2 id="experiment-title">Feel the controller change.</h2>
+        <ol><li><span>01</span><div><b>Build the scene</b><p>Generate a small VR playground from the included C# kit.</p></div></li><li><span>02</span><div><b>Keep holding the cube</b><p>Switch CJ, relative PD, and backward PD without dropping it.</p></div></li><li><span>03</span><div><b>Test it against a wall</b><p>Compare tracking, reaction, and recovery in your headset.</p></div></li></ol>
+      </aside>
+    </section>
+
+    <details class="mobile-toc"><summary>On this page <span>13 sections</span></summary><nav aria-label="Mobile table of contents"><ol class="toc-list"><li><a href="#1-from-an-empty-project-to-the-teaching-scene" data-chapter="1-from-an-empty-project-to-the-teaching-scene"><span class="toc-number" aria-hidden="true">01</span><span>Build the teaching scene</span></a></li>
+<li><a href="#2-keep-three-different-things-separate" data-chapter="2-keep-three-different-things-separate"><span class="toc-number" aria-hidden="true">02</span><span>Tracking and force paths</span></a></li>
+<li><a href="#3-what-comes-from-gorillalocomotion" data-chapter="3-what-comes-from-gorillalocomotion"><span class="toc-number" aria-hidden="true">03</span><span>The GorillaLocomotion source</span></a></li>
+<li><a href="#4-where-the-c-lives" data-chapter="4-where-the-c-lives"><span class="toc-number" aria-hidden="true">04</span><span>C# source map</span></a></li>
+<li><a href="#5-the-three-controllers" data-chapter="5-the-three-controllers"><span class="toc-number" aria-hidden="true">05</span><span>Three grab controllers</span></a></li>
+<li><a href="#6-feedforward-damping-and-the-one-euro-question" data-chapter="6-feedforward-damping-and-the-one-euro-question"><span class="toc-number" aria-hidden="true">06</span><span>Feedforward and filtering</span></a></li>
+<li><a href="#7-joint-frames-fix-these-before-tuning" data-chapter="7-joint-frames-fix-these-before-tuning"><span class="toc-number" aria-hidden="true">07</span><span>Joint frames and rotation</span></a></li>
+<li><a href="#8-what-fireblasts-numbers-actually-tell-us" data-chapter="8-what-fireblasts-numbers-actually-tell-us"><span class="toc-number" aria-hidden="true">08</span><span>FireBlast’s settings</span></a></li>
+<li><a href="#9-timing-gravity-and-release-behavior" data-chapter="9-timing-gravity-and-release-behavior"><span class="toc-number" aria-hidden="true">09</span><span>Timing, gravity, release</span></a></li>
+<li><a href="#10-run-these-experiments-in-order" data-chapter="10-run-these-experiments-in-order"><span class="toc-number" aria-hidden="true">10</span><span>Experiments and tuning</span></a></li>
+<li><a href="#11-troubleshooting" data-chapter="11-troubleshooting"><span class="toc-number" aria-hidden="true">11</span><span>Troubleshooting</span></a></li>
+<li><a href="#12-quest-build-and-the-webxr-companion" data-chapter="12-quest-build-and-the-webxr-companion"><span class="toc-number" aria-hidden="true">12</span><span>Quest, WebXR, acceptance</span></a></li>
+<li><a href="#credits-and-foundations" data-chapter="credits-and-foundations"><span class="toc-number" aria-hidden="true">+</span><span>Credits and foundations</span></a></li></ol></nav></details>
+
+    <div class="document-layout">
+      <aside class="sidebar"><div class="sidebar-inner"><nav aria-label="Table of contents"><p class="eyebrow">ON THIS PAGE</p><ol class="toc-list"><li><a href="#1-from-an-empty-project-to-the-teaching-scene" data-chapter="1-from-an-empty-project-to-the-teaching-scene"><span class="toc-number" aria-hidden="true">01</span><span>Build the teaching scene</span></a></li>
+<li><a href="#2-keep-three-different-things-separate" data-chapter="2-keep-three-different-things-separate"><span class="toc-number" aria-hidden="true">02</span><span>Tracking and force paths</span></a></li>
+<li><a href="#3-what-comes-from-gorillalocomotion" data-chapter="3-what-comes-from-gorillalocomotion"><span class="toc-number" aria-hidden="true">03</span><span>The GorillaLocomotion source</span></a></li>
+<li><a href="#4-where-the-c-lives" data-chapter="4-where-the-c-lives"><span class="toc-number" aria-hidden="true">04</span><span>C# source map</span></a></li>
+<li><a href="#5-the-three-controllers" data-chapter="5-the-three-controllers"><span class="toc-number" aria-hidden="true">05</span><span>Three grab controllers</span></a></li>
+<li><a href="#6-feedforward-damping-and-the-one-euro-question" data-chapter="6-feedforward-damping-and-the-one-euro-question"><span class="toc-number" aria-hidden="true">06</span><span>Feedforward and filtering</span></a></li>
+<li><a href="#7-joint-frames-fix-these-before-tuning" data-chapter="7-joint-frames-fix-these-before-tuning"><span class="toc-number" aria-hidden="true">07</span><span>Joint frames and rotation</span></a></li>
+<li><a href="#8-what-fireblasts-numbers-actually-tell-us" data-chapter="8-what-fireblasts-numbers-actually-tell-us"><span class="toc-number" aria-hidden="true">08</span><span>FireBlast’s settings</span></a></li>
+<li><a href="#9-timing-gravity-and-release-behavior" data-chapter="9-timing-gravity-and-release-behavior"><span class="toc-number" aria-hidden="true">09</span><span>Timing, gravity, release</span></a></li>
+<li><a href="#10-run-these-experiments-in-order" data-chapter="10-run-these-experiments-in-order"><span class="toc-number" aria-hidden="true">10</span><span>Experiments and tuning</span></a></li>
+<li><a href="#11-troubleshooting" data-chapter="11-troubleshooting"><span class="toc-number" aria-hidden="true">11</span><span>Troubleshooting</span></a></li>
+<li><a href="#12-quest-build-and-the-webxr-companion" data-chapter="12-quest-build-and-the-webxr-companion"><span class="toc-number" aria-hidden="true">12</span><span>Quest, WebXR, acceptance</span></a></li>
+<li><a href="#credits-and-foundations" data-chapter="credits-and-foundations"><span class="toc-number" aria-hidden="true">+</span><span>Credits and foundations</span></a></li></ol></nav><div class="sidebar-links"><a href="../vr/">Try the Grab Lab <span aria-hidden="true">↗</span></a><a href="./tutorial.md" download>Download this guide <span aria-hidden="true">↓</span></a><p>Read the explanation, then test the feel.</p></div></div></aside>
+      <main id="tutorial-content" class="doc-body" tabindex="-1" aria-label="Complete Unity VR tutorial">
+<p class="lead">Build a small Unity VR playground, pick up a real Rigidbody, and switch its controller <strong>while the object is still in your hand</strong>. Compare a native ConfigurableJoint, relative-velocity PD, and backward PD. Press the same cube against the same wall, rotate it, release it, and decide which feels better in a headset.</p>
+<p>That is the useful experiment behind FireBlast’s setup: responsive hand locomotion and physical grabbed objects can coexist. A graph helps explain a problem; the in-headset A/B decides whether the solution feels good.</p>
+<p class="resource-links"><strong>Start here:</strong> <a href="../downloads/TrontPhysicsGym-Unity.zip">Unity starter kit</a> · <a href="../vr/">WebXR companion</a> · <a href="../">Physics Gym comparison</a> · <a href="https://github.com/TrentSterling/pid">Source repository</a></p>
+<p class="validation-note">This is a teaching implementation for <strong>Unity 6 with OpenXR</strong>, including the Unity 6.3 workflow. The C# kit has not been executed in Unity or tested on a headset during its creation. Run the checks below before treating it as a foundation for a shipped game. The browser companion is an independently implemented experiment, not a Unity or PhysX emulator.</p>
+<h2 id="1-from-an-empty-project-to-the-teaching-scene" tabindex="-1">1. From an empty project to the teaching scene<a class="heading-link" href="#1-from-an-empty-project-to-the-teaching-scene" aria-label="Link to 1. From an empty project to the teaching scene">#</a></h2>
+<h3 id="install-the-project-dependencies" tabindex="-1">Install the project dependencies<a class="heading-link" href="#install-the-project-dependencies" aria-label="Link to Install the project dependencies">#</a></h3>
+<ol>
+<li>Create a Unity 6 <strong>3D Built-In</strong> or <strong>Universal 3D</strong> project. Use a blank scene. Install Android Build Support, including its SDK/NDK and OpenJDK modules, through Unity Hub if you intend to build for Quest.</li>
+<li>Open Package Manager and install <strong>Input System</strong>, <strong>XR Plug-in Management</strong>, and <strong>OpenXR Plugin</strong>, using versions compatible with your editor. Keep <code>Packages/manifest.json</code> and <code>packages-lock.json</code> in your repository so your friends get the same dependency versions.</li>
+<li>In <strong>Project Settings → Player → Active Input Handling</strong>, enable the Input System and restart if Unity requests it.</li>
+<li>Under <strong>Project Settings → XR Plug-in Management</strong>, enable <strong>OpenXR</strong> for the platform you are testing. Desktop and Android have separate settings. Merely installing the package does not enable the provider.</li>
+<li>In OpenXR settings, add <strong>Oculus Touch Controller Profile</strong> for the kit’s supplied controller bindings. Run <strong>Project Validation</strong> and resolve the required issues for the active platform. For other controllers, add their interaction profile and corresponding bindings to the action asset.</li>
+</ol>
+<p>These steps follow Unity’s <a href="https://docs.unity3d.com/Packages/com.unity.xr.openxr@1.14/manual/project-configuration.html">OpenXR project configuration</a>. The linked package documentation explains the workflow; it is not a claim that version 1.14 is the latest version you should install.</p>
+<h3 id="import-and-generate" tabindex="-1">Import and generate<a class="heading-link" href="#import-and-generate" aria-label="Link to Import and generate">#</a></h3>
+<p>Copy the kit’s <code>Assets/TrontPhysicsGym</code> folder into your project’s <code>Assets</code> folder, wait for compilation, then select:</p>
+<p><strong>Tools → Tront Physics Gym → Create Teaching Scene</strong></p>
+<p>The builder creates the playground, player, tracked references, hands, grabbable props, and serialized Input Actions. It also assigns the component references and saves <code>Assets/TrontPhysicsGym/Generated/PhysicsGym.unity</code> (with a unique filename if generated again). Put that scene in your active Build Profile’s scene list. Run <strong>Tools → Tront Physics Gym → Run Math Checks</strong> and inspect the Console before entering Play Mode. Those checks exercise controller math; they do not test an XR runtime or physical contacts.</p>
+<p>The kit owns its camera and tracking transforms. Start with the generated rig; adding another tracked-pose driver or a second locomotion system to the same transforms creates competing writers. XR Interaction Toolkit is not needed for this implementation. If you later integrate it, choose which system owns grabbing, camera poses, and locomotion.</p>
+<p>The generated actions use <code>&lt;XRHMD&gt;/centerEyePosition</code> and <code>centerEyeRotation</code>, plus the left/right <code>&lt;OculusTouchController&gt;</code> layouts for poses, tracking validity, grip, and buttons. These are Input System actions, not legacy <code>Input.GetAxis</code> controls. Unity documents the <a href="https://docs.unity3d.com/Packages/com.unity.xr.openxr@1.14/manual/input.html">OpenXR input workflow</a> and the <a href="https://docs.unity3d.com/Packages/com.unity.xr.openxr@1.14/manual/features/oculustouchcontrollerprofile.html">Touch control names</a>.</p>
+<p><code>GymRigInput</code> requests a <strong>Floor</strong> tracking origin. Leave <code>deviceOriginHeightOffset</code> at zero when floor-relative poses are available. If your runtime supplies a Device origin instead, configure the corresponding height offset; adding eye height to an already floor-relative pose raises the whole rig twice. Verify the virtual floor and real controller height before testing locomotion. <a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/XR.TrackingOriginModeFlags.html">Unity: tracking origin modes</a>.</p>
+<h3 id="first-run" tabindex="-1">First run<a class="heading-link" href="#first-run" aria-label="Link to First run">#</a></h3>
+<p>Run the desktop controls first. Use WASD to approach a cube, select the right virtual hand with <strong>2</strong>, and move it close with <strong>I/K</strong>, <strong>J/L</strong>, and <strong>U/O</strong>. Press and hold <strong>E</strong> once the hand is within reach; release and press again if you missed. Keep holding E and press <strong>C</strong> to switch controllers. Release E to drop the cube. Check that the body falls onto the floor and both hands work before running the OpenXR headset version.</p>
+<div class="table-wrap"><div class="table-scroll" tabindex="0" role="region" aria-label="First run table"><table>
+<thead>
+<tr>
+<th scope="col">Action</th>
+<th scope="col">Unity desktop</th>
+<th scope="col">Unity headset</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Move / look</td>
+<td>WASD / hold right mouse button</td>
+<td>Move and push with tracked hands; no stick locomotion in this teaching rig.</td>
+</tr>
+<tr>
+<td>Hold left / right object</td>
+<td>Hold Q / E</td>
+<td>Hold the corresponding grip.</td>
+</tr>
+<tr>
+<td>Choose hand to reposition</td>
+<td>1 left, 2 right, 3 both</td>
+<td>Move the real controller.</td>
+</tr>
+<tr>
+<td>Reposition virtual hand</td>
+<td>I/K forward/back; J/L sideways; U/O up/down</td>
+<td>Tracked pose.</td>
+</tr>
+<tr>
+<td>Restore virtual hand positions</td>
+<td>H</td>
+<td>Not applicable.</td>
+</tr>
+<tr>
+<td>Cycle controller while holding</td>
+<td>C</td>
+<td>A, right primary button.</td>
+</tr>
+<tr>
+<td>Toggle acceleration feedforward</td>
+<td>F</td>
+<td>X, left primary button; custom modes only.</td>
+</tr>
+<tr>
+<td>Toggle custom reaction forces</td>
+<td>B or desktop UI</td>
+<td>Set in Inspector before the headset test. Native CJ always reacts.</td>
+</tr>
+<tr>
+<td>FireBlast angular/mass preset</td>
+<td>P or desktop UI</td>
+<td>Set in Inspector before the headset test.</td>
+</tr>
+<tr>
+<td>Toggle locomotion motor</td>
+<td>M or desktop UI</td>
+<td>Set in Inspector before the headset test.</td>
+</tr>
+<tr>
+<td>Reset scene</td>
+<td>R</td>
+<td>Y, left secondary button.</td>
+</tr>
+</tbody></table>
+</div><div class="table-hint" aria-hidden="true">Swipe or scroll horizontally to see the full table</div></div>
+<p>The in-world status board identifies the active controller and feedforward state. For an initial headset check, leave the motor enabled, start with the teaching preset, and perform A/B switches with A while keeping grip held.</p>
+<p>The teaching baseline is a <strong>75 kg player</strong>, <strong>1 kg prop</strong>, <strong>6 Hz</strong> frequency, <strong>1</strong> damping ratio, <strong>1600 N</strong> linear force cap, <strong>30 N·m</strong> torque cap, and <strong>90 Hz</strong> fixed physics step. Generated bodies use 12 solver iterations and 6 velocity iterations. These are our chosen starting values. They are not FireBlast’s complete settings. A 75 kg body weighs about 736 N under ordinary gravity, so a very small grip-force limit can prevent a held object from supporting the player regardless of gains.</p>
+<h2 id="2-keep-three-different-things-separate" tabindex="-1">2. Keep three different things separate<a class="heading-link" href="#2-keep-three-different-things-separate" aria-label="Link to 2. Keep three different things separate">#</a></h2>
+<p><strong>Tracked pose:</strong> where the real controller says the hand is. It is a reference, and can pass through virtual geometry.</p>
+<p><strong>Physical object:</strong> the dynamic Rigidbody that collides, has inertia, and can be blocked by a wall. A grab controller applies forces or constraints to bring it toward the reference.</p>
+<p><strong>Player body:</strong> the Rigidbody that receives the grab reaction and the locomotion motor’s contribution. The tracked hand’s desired world pose moves with this body’s reference frame.</p>
+<p>Do not parent a held dynamic object to the tracked hand and also drive it with physics. That gives its pose two owners. Preserve the point and orientation at which the object was grabbed, then drive that attachment toward the hand. The user’s camera follows measured head tracking; it should not be a spring-driven prop. Keep the player, tracking space, and physics-body scales at <code>(1,1,1)</code>; use one Unity unit as one metre.</p>
+<h3 id="direct-connection-versus-a-proxy-hand" tabindex="-1">Direct connection versus a proxy hand<a class="heading-link" href="#direct-connection-versus-a-proxy-hand" aria-label="Link to Direct connection versus a proxy hand">#</a></h3>
+<div class="table-wrap"><div class="table-scroll" tabindex="0" role="region" aria-label="Direct connection versus a proxy hand table"><table>
+<thead>
+<tr>
+<th scope="col">Arrangement</th>
+<th scope="col">Force path</th>
+<th scope="col">Consequence</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Object joint connected directly to dynamic player</td>
+<td>Object ↔ player</td>
+<td>Native joint solving reacts on both bodies; this is the kit’s CJ arrangement.</td>
+</tr>
+<tr>
+<td>Object connected to a dynamic hand Rigidbody, hand connected to player</td>
+<td>Object ↔ hand ↔ player</td>
+<td>The hand has its own mass, contacts, and controller. Both connections need tuning.</td>
+</tr>
+<tr>
+<td>Object connected to a kinematic hand Rigidbody</td>
+<td>Object ↔ prescribed hand motion</td>
+<td>The solver can push the object, but the kinematic hand does not accelerate from that reaction. A separate mechanism must transmit load to the player.</td>
+</tr>
+<tr>
+<td>Custom forces on object only</td>
+<td>Tracking target → object</td>
+<td>Following works, but holding a cube against a wall does not automatically push the player.</td>
+</tr>
+</tbody></table>
+</div><div class="table-hint" aria-hidden="true">Swipe or scroll horizontally to see the full table</div></div>
+<p>This explains why “use a hand proxy” is incomplete advice. <strong>Is the proxy dynamic, and how is it connected to the body?</strong> That determines the reaction path. Unity describes the behavior of <a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Rigidbody-isKinematic.html">kinematic rigidbodies</a>.</p>
+<p>With custom control, the kit applies the grab force to the object and an opposite force to the player. With a native joint, PhysX supplies the reaction. Do not add the custom reaction on top of the native joint’s reaction.</p>
+<h2 id="3-what-comes-from-gorillalocomotion" tabindex="-1">3. What comes from GorillaLocomotion<a class="heading-link" href="#3-what-comes-from-gorillalocomotion" aria-label="Link to 3. What comes from GorillaLocomotion">#</a></h2>
+<p>The original source is included under <code>upstream/GorillaLocomotion</code>, pinned to commit <code>bc42e959cf3e69178f9147d89bd3ffeab1c432c4</code>, with its MIT license. Read <a href="https://github.com/Another-Axiom/GorillaLocomotion/blob/bc42e959cf3e69178f9147d89bd3ffeab1c432c4/Player.cs">Another Axiom’s Player.cs</a> alongside the teaching motor.</p>
+<p>In that source, <code>Update()</code> sweeps hand positions, computes player displacement from constrained hands, checks head movement, moves the player transform, and maintains a velocity history for launch behavior. It also explicitly zeroes Rigidbody velocity when a hand collides, then can assign a launch velocity. That is deliberate arcade movement code; it is not merely a pair of physical spring hands.</p>
+<p>Dropping another force controller onto that player does not guarantee its impulses survive those velocity writes. Decide who owns the velocity at each phase of movement.</p>
+<p>Our <code>GymMotor</code> is an <strong>adaptation</strong>, not an exact port of Gorilla Tag’s feel. It uses fixed-step hand-contact logic and a bounded acceleration motor toward planted-hand motion. It adds forces instead of routinely replacing the player’s entire velocity. Grab reactions therefore have a route into the body’s motion, although the active motor can still oppose them. The original launch history and collision behavior remain a useful source to study, not a claim of parity with this kit.</p>
+<p>Do not attach the original <code>GorillaLocomotion.Player</code> to the generated teaching player at the same time. Experiment with one movement owner at a time, then explicitly design the handoff if you combine them.</p>
+<h2 id="4-where-the-c-lives" tabindex="-1">4. Where the C# lives<a class="heading-link" href="#4-where-the-c-lives" aria-label="Link to 4. Where the C# lives">#</a></h2>
+<p>The runtime files are in <code>Assets/TrontPhysicsGym/Runtime</code>; the builder and checks are in <code>Assets/TrontPhysicsGym/Editor</code>. <a href="https://github.com/TrentSterling/pid/tree/main/unity/Assets/TrontPhysicsGym">Browse the complete C# source</a>.</p>
+<div class="table-wrap"><div class="table-scroll" tabindex="0" role="region" aria-label="4. Where the C# lives table"><table>
+<thead>
+<tr>
+<th scope="col">File</th>
+<th scope="col">Read it to understand</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GymRigInput.cs</code></td>
+<td>Input Actions, XR and desktop poses, tracking-space samples.</td>
+</tr>
+<tr>
+<td><code>GymMotor.cs</code></td>
+<td>Player body, contact locomotion, and reference-frame movement.</td>
+</tr>
+<tr>
+<td><code>GymHand.cs</code></td>
+<td>Grip acquisition/release, attachment data, runtime mode switching, joint or force application.</td>
+</tr>
+<tr>
+<td><code>GymGrabbable.cs</code></td>
+<td>Which bodies can be held and ownership of a grab.</td>
+</tr>
+<tr>
+<td><code>GymControllerMath.cs</code></td>
+<td>PD gains, backward gains, quaternion error, mass/inertia conversion.</td>
+</tr>
+<tr>
+<td><code>GymLabControls.cs</code></td>
+<td>Runtime controls, presets, and the experiment’s UI.</td>
+</tr>
+<tr>
+<td><code>Editor/GymSceneBuilder.cs</code></td>
+<td>Reproducible scene construction and Input Actions.</td>
+</tr>
+<tr>
+<td><code>Editor/GymMathChecks.cs</code></td>
+<td>Small numerical checks for the controller calculations.</td>
+</tr>
+</tbody></table>
+</div><div class="table-hint" aria-hidden="true">Swipe or scroll horizontally to see the full table</div></div>
+<p>Begin with <code>GymHand</code>, then follow the math helpers. The important lifecycle is <strong>acquire → capture attachment → drive → release</strong>. Switching modes retains the current held object and attachment, tears down the previous drive, and starts the selected one. Two active controllers on one grab make the comparison meaningless.</p>
+<h2 id="5-the-three-controllers" tabindex="-1">5. The three controllers<a class="heading-link" href="#5-the-three-controllers" aria-label="Link to 5. The three controllers">#</a></h2>
+<h3 id="configurablejoint-let-the-solver-enforce-a-driven-relationship" tabindex="-1">ConfigurableJoint: let the solver enforce a driven relationship<a class="heading-link" href="#configurablejoint-let-the-solver-enforce-a-driven-relationship" aria-label="Link to ConfigurableJoint: let the solver enforce a driven relationship">#</a></h3>
+<p>A ConfigurableJoint includes drives, limits, frames, collision interactions, and solver behavior. Its spring and damper drive is PD-like, but a whole joint is more than one <code>AddForce</code> formula. PhysX handles coupled constraints within its solver; see the <a href="https://nvidia-omniverse.github.io/PhysX/physx/5.4.0/docs/Joints.html">PhysX joint documentation</a>.</p>
+<p>The kit puts the joint on the prop and connects it to the player. Its linear drives move the prop’s grab point toward an updated connected anchor, and its Slerp drive handles orientation. The native baseline uses <code>targetPosition = Vector3.zero</code> with a moving <code>connectedAnchor</code>; <code>targetVelocity</code> and <code>targetAngularVelocity</code> are both zero. Thus it does <strong>not</strong> supply the tracked anchor’s linear/angular motion as native velocity feedforward. Remember this when comparing its moving-target lag with the custom modes.</p>
+<p>This A/B compares these implemented configurations. It cannot establish that every ConfigurableJoint is slower than every custom controller. The joint’s per-axis drive limits also differ from a custom controller’s total vector-force clamp.</p>
+<h3 id="relative-pd-damp-the-error-in-motion" tabindex="-1">Relative PD: damp the error in motion<a class="heading-link" href="#relative-pd-damp-the-error-in-motion" aria-label="Link to Relative PD: damp the error in motion">#</a></h3>
+<p>At the prop’s grab point, define:</p>
+<div class="code-block"><div class="code-header"><span>C#</span><button class="copy-code" type="button" data-copy-code="code-1" aria-label="Copy C# code example 1" hidden>Copy code</button></div><pre tabindex="0" aria-label="C# code example 1"><code id="code-1" class="language-csharp">Vector3 error = desiredPoint - actualPoint;
+Vector3 velocityError = desiredVelocity - actualPointVelocity;
+Vector3 acceleration = kp * error + kd * velocityError;</code></pre></div>
+<p>Position error pulls toward the target; velocity error brakes motion that is wrong relative to that target. The actual point velocity must include rotation. <code>Rigidbody.GetPointVelocity(worldPoint)</code> does that; using only <code>linearVelocity</code> treats a spinning object’s handle as stationary relative to its center. <a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Rigidbody.GetPointVelocity.html">Unity: GetPointVelocity</a>.</p>
+<p>The kit converts this desired relative acceleration into force using the pair’s reduced mass:</p>
+<div class="code-block"><div class="code-header"><span>C#</span><button class="copy-code" type="button" data-copy-code="code-2" aria-label="Copy C# code example 2" hidden>Copy code</button></div><pre tabindex="0" aria-label="C# code example 2"><code id="code-2" class="language-csharp">float inverseMassSum = inverseObjectMass + inversePlayerMass;
+float effectiveMass = 1f / inverseMassSum;
+Vector3 force = effectiveMass * acceleration;</code></pre></div>
+<p>Then it limits the force and applies opposing forces. A kinematic body contributes zero inverse mass. Disabling custom reaction with B excludes the player from this mass calculation and applies force only to the prop. This scalar calculation is a useful translation approximation; it does not solve the full rotational effective mass at two off-center attachment points. It is therefore not an exact replacement for the joint solver.</p>
+<p>For the custom modes, frequency and damping ratio set:</p>
+<div class="code-block"><div class="code-header"><span>C#</span><button class="copy-code" type="button" data-copy-code="code-3" aria-label="Copy C# code example 3" hidden>Copy code</button></div><pre tabindex="0" aria-label="C# code example 3"><code id="code-3" class="language-csharp">float omega = 2f * Mathf.PI * frequencyHz;
+float kp = omega * omega;
+float kd = 2f * dampingRatio * omega;</code></pre></div>
+<p>Here <code>kp</code> has units of inverse seconds squared and <code>kd</code> inverse seconds. They produce acceleration before mass conversion. Do not paste them into a force-based joint drive without accounting for mass and that drive’s convention. Frequency means natural-frequency parameter in this kit; it is not a guaranteed reciprocal settling time.</p>
+<h3 id="backward-pd-account-for-the-discrete-step" tabindex="-1">Backward PD: account for the discrete step<a class="heading-link" href="#backward-pd-account-for-the-discrete-step" aria-label="Link to Backward PD: account for the discrete step">#</a></h3>
+<p>The backward mode uses the gain adjustment popularized by David Wu and explained by Digital Opus:</p>
+<div class="code-block"><div class="code-header"><span>C#</span><button class="copy-code" type="button" data-copy-code="code-4" aria-label="Copy C# code example 4" hidden>Copy code</button></div><pre tabindex="0" aria-label="C# code example 4"><code id="code-4" class="language-csharp">float g = 1f / (1f + kd * dt + kp * dt * dt);
+Vector3 acceleration = (kp * g) * error
+                     + ((kd + kp * dt) * g) * velocityError;</code></pre></div>
+<p>This softens the effective gains according to the simulation interval. It makes the ideal linear tracking problem more tolerant of high gains and coarse steps. Force caps, delayed input, changing contacts, off-center torque, and a second motor create a different system; they do not inherit a blanket stability guarantee. <a href="https://digitalopus.ca/site/pd-controllers/">Digital Opus, Part I</a>.</p>
+<p>Digital Opus’s Part II and the <a href="https://www.jie-tan.net/project/spd.html">Tan, Liu, and Turk SPD paper</a> discuss related next-step methods. The names are not interchangeable. The kit’s <code>BackwardPD</code> mode implements the formula above; the Physics Gym’s other SPD experiments are separately labeled. Increasing a gain cannot make a finite force budget unlimited.</p>
+<h2 id="6-feedforward-damping-and-the-one-euro-question" tabindex="-1">6. Feedforward, damping, and the One Euro question<a class="heading-link" href="#6-feedforward-damping-and-the-one-euro-question" aria-label="Link to 6. Feedforward, damping, and the One Euro question">#</a></h2>
+<p>Suppose the hand travels right at a steady speed. A damper written as <code>-kd * objectVelocity</code> pushes left even when the object is perfectly matching the hand. The spring needs a trailing position error to overcome that damping. Raising the damper can therefore make tracking feel soupy.</p>
+<p>With <code>kd * (targetVelocity - objectVelocity)</code>, an object moving alongside its target has zero velocity error. Expanding the expression gives <code>+kd * targetVelocity - kd * objectVelocity</code>. That target term is what people often mean by <strong>velocity feedforward</strong> in this discussion. It is already present in relative-velocity PD; adding it again would double it.</p>
+<p><strong>Acceleration feedforward</strong> is different: it adds an estimate of the target’s acceleration so the controller can begin matching a change in motion before a large tracking error develops. The kit’s optional feedforward is bounded tracking-space hand acceleration, rotated into world space. It excludes acceleration caused by the simulated player body; feeding the reaction-induced body acceleration straight back into the grip can create a feedback loop. Start with it off, then compare reversals and curved hand paths.</p>
+<p><strong>A One Euro filter</strong> is an adaptive low-pass filter for noisy input. Its cutoff increases with motion speed to trade less lag for less smoothing. It does not change the grab spring’s damping ratio. Nor does it invent a missing target velocity or repair a coordinate-space mistake. Use filtering when measured tracking noise is the problem, after the force law and timing are correct. The kit does not claim to implement One Euro. <a href="https://gery.casiez.net/1euro/">Original authors’ filter explanation and implementation</a>.</p>
+<p>An integral term is also not the first repair. It can accumulate error while a wall prevents the prop reaching its target, then release that stored demand when contact ends. Start with PD, a sensible force cap, and known gravity behavior before introducing integral state and anti-windup.</p>
+<h2 id="7-joint-frames-fix-these-before-tuning" tabindex="-1">7. Joint frames: fix these before tuning<a class="heading-link" href="#7-joint-frames-fix-these-before-tuning" aria-label="Link to 7. Joint frames: fix these before tuning">#</a></h2>
+<p>A joint has an object attachment, a connected-body attachment, and axes defining a joint frame. World rotation, local rotation, and joint-space target rotation are different quantities. Unity’s <a href="https://docs.unity3d.com/6000.0/Documentation/Manual/class-ConfigurableJoint.html">ConfigurableJoint manual</a> defines the anchor, axes, motion modes, and drives.</p>
+<p>For the direct connection:</p>
+<ol>
+<li>On pickup, store the selected point in the object’s local space. That is the prop-side <code>anchor</code>.</li>
+<li>Disable automatic connected-anchor configuration because the controller updates that anchor itself.</li>
+<li>Express the desired hand point in the player body’s local space for <code>connectedAnchor</code>.</li>
+<li>Preserve the grabbed object’s orientation offset from the tracked hand. Reconstruct the desired object orientation as the hand rotates.</li>
+<li>Convert that desired orientation into the captured joint/rest frame. Do not assign the hand’s world quaternion blindly to <code>targetRotation</code>.</li>
+</ol>
+<p>Use the kit’s frame helper consistently. If you change <code>axis</code>, <code>secondaryAxis</code>, <code>configuredInWorldSpace</code>, or which body owns the joint, review the conversion as a whole.</p>
+<p>A useful verification: rotate the prop 45 degrees before grabbing, then rotate the player’s yaw, and repeat small hand rotations around all three axes. Pickup should not snap the prop to an unrelated orientation. A wrong sign or frame is not fixed by more damping.</p>
+<p>For custom torque, use a shortest-arc quaternion error converted to a rotation vector in <strong>radians</strong>, compare angular velocities in radians per second, and convert angular acceleration through the body’s inertia tensor frame. Inertia is not just mass: a long tool and a compact cube of the same mass resist rotation differently. <a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Rigidbody-inertiaTensor.html">Unity: inertiaTensor</a>.</p>
+<p>The teaching player’s rotation is locked. It does not reproduce the full angular response of a freely tumbling player connected to a prop. Evaluate handheld object rotation here; use a separate unconstrained rig to study full-body torque balance.</p>
+<h2 id="8-what-fireblasts-numbers-actually-tell-us" tabindex="-1">8. What FireBlast’s numbers actually tell us<a class="heading-link" href="#8-what-fireblasts-numbers-actually-tell-us" aria-label="Link to 8. What FireBlast’s numbers actually tell us">#</a></h2>
+<div class="table-wrap"><div class="table-scroll" tabindex="0" role="region" aria-label="8. What FireBlast’s numbers actually tell us table"><table>
+<thead>
+<tr>
+<th scope="col">Reported setting</th>
+<th scope="col" align="right">Value</th>
+<th scope="col">What it controls or leaves open</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Player Rigidbody mass</td>
+<td align="right">1 kg</td>
+<td>Actual body mass, not the teaching baseline.</td>
+</tr>
+<tr>
+<td>Object Rigidbody mass</td>
+<td align="right">1 kg</td>
+<td>Still does not specify rotational inertia.</td>
+</tr>
+<tr>
+<td>Object-side mass scale</td>
+<td align="right">1</td>
+<td>Joint solver’s object inverse-mass/inertia multiplier.</td>
+</tr>
+<tr>
+<td>Connected mass scale</td>
+<td align="right">8</td>
+<td>Connected body’s inverse-mass/inertia multiplier.</td>
+</tr>
+<tr>
+<td>Angular spring</td>
+<td align="right">1800</td>
+<td>Reported rotational drive stiffness.</td>
+</tr>
+<tr>
+<td>Angular damper</td>
+<td align="right">120</td>
+<td>Reported rotational drive damping.</td>
+</tr>
+<tr>
+<td>Angular maximum force</td>
+<td align="right">12000</td>
+<td>Rotational drive cap; not the unknown linear drive cap.</td>
+</tr>
+<tr>
+<td>Projection</td>
+<td align="right">Position and rotation</td>
+<td>Constraint error correction mode.</td>
+</tr>
+<tr>
+<td>Projection tolerances</td>
+<td align="right">0.02 m, 5°</td>
+<td>Thresholds, not spring gains.</td>
+</tr>
+<tr>
+<td>Linear drives</td>
+<td align="right"><strong>Unknown</strong></td>
+<td>Spring, damper, maximum force, and motion modes were not supplied.</td>
+</tr>
+</tbody></table>
+</div><div class="table-hint" aria-hidden="true">Swipe or scroll horizontally to see the full table</div></div>
+<p>The FireBlast preset preserves the reported portion, with our chosen values filling missing implementation details. It is an <strong>incomplete reproduction</strong>. We also lack his exact collider geometry, joint frames, input timing, solver settings, and proxy-hand arrangement.</p>
+<p><code>connectedMassScale = 8</code> does not make a 1 kg connected player act like an 8 kg mass to that joint. Unity applies the multiplier to <strong>inverse mass and inverse inertia</strong>, so it makes that connected body easier for the joint to accelerate. For an isolated translational constraint with equal actual masses and scales 1 and 8, the ideal response split is in the ratio 1:8. Contacts, locked axes, inertia, and the locomotion motor prevent treating that as a measured 89% gameplay result. <a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Joint-connectedMassScale.html">Unity: connectedMassScale</a>.</p>
+<p>Projection is a separate mechanism: it corrects violated constraints geometrically and does not preserve momentum or respect collision geometry. Its distance/angle thresholds primarily concern constrained degrees of freedom; setting 0.02 m does not turn freely driven axes into a universal 2 cm leash. Leave projection off while evaluating a spring drive, then introduce it only for a demonstrated constraint-separation problem. <a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/ConfigurableJoint-projectionMode.html">Unity: projectionMode</a> and <a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/ConfigurableJoint-projectionDistance.html">projectionDistance</a>.</p>
+<h2 id="9-timing-gravity-and-release-behavior" tabindex="-1">9. Timing, gravity, and release behavior<a class="heading-link" href="#9-timing-gravity-and-release-behavior" aria-label="Link to 9. Timing, gravity, and release behavior">#</a></h2>
+<p>Sample controller poses with their tracking context. Perform force calculations and joint updates on the physics schedule. Unity recommends <code>FixedUpdate</code> for Rigidbody force changes because rendering and simulation need not run at the same rate. A 90 Hz physics step is about 11.11 ms; a 120 Hz display does not automatically change it. <a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Rigidbody.html">Unity: Rigidbody</a>.</p>
+<p>The kit samples hand targets and estimates bounded velocities in <code>Update</code>; <code>FixedUpdate</code> consumes the latest sample. The camera gets an additional pose refresh before rendering. Acceleration feedforward is a filtered estimate from those hand-velocity samples, not perfect hardware acceleration. Under a render stall, several physics steps may reuse a sample; inspect this timing before blaming the gains.</p>
+<p>In the custom modes, desired point velocity combines the player body’s velocity at the desired point with hand motion measured relative to the player’s tracking space. Differentiating raw world-space hand position and then adding player velocity again would double-count the body’s motion.</p>
+<p>Reset derivative history at discontinuities: pickup, recenter, teleport, tracking loss/recovery, and a large unexpected pose jump. Otherwise a one-frame displacement becomes an enormous estimated velocity or acceleration. Force limits are a final bound, not a replacement for validating those samples.</p>
+<p>Keep gravity enabled while learning how weight transfers. A held object can settle below its target because the spring must produce its weight-supporting force. If you add gravity compensation, label it as a design decision and decide where the corresponding load goes. Disabling prop gravity while held changes the experiment. <a href="https://manipulation.csail.mit.edu/force.html">MIT’s manipulation notes explain PD’s steady-state gravity error</a>.</p>
+<p>On release, remove the grab controller and retain the prop’s physically accumulated velocity. Do not add a second full controller throw velocity on top unless you deliberately designed that blend. A wall-blocked prop should not inherit a throw that only the invisible target performed.</p>
+<p>The sample immediately restores player–prop collisions on release. Releasing a prop inside the player capsule can therefore cause a depenetration kick. A production refinement is to keep that collision pair ignored until the bodies separate; include overlapping release in your acceptance tests.</p>
+<p>Interpolation can make rendered rigidbodies look smoother between physics steps; it does not increase simulation frequency. Keep the physics state and rendered pose distinct when diagnosing lag. <a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Rigidbody-interpolation.html">Unity: Rigidbody interpolation</a>.</p>
+<h2 id="10-run-these-experiments-in-order" tabindex="-1">10. Run these experiments in order<a class="heading-link" href="#10-run-these-experiments-in-order" aria-label="Link to 10. Run these experiments in order">#</a></h2>
+<ol>
+<li><strong>Free-air follow.</strong> Hold the small cube, make a slow straight sweep, stop, then reverse sharply. Switch modes while holding. Look for lag, overshoot, and grip offset. Test acceleration feedforward off before turning it on in a custom mode.</li>
+<li><strong>Wall pressure.</strong> Push the held cube into a wall. The physical cube should stop while the tracked target continues. Observe player reaction and force saturation. Pull away gently; stored controller demand should not launch the cube violently.</li>
+<li><strong>Floor support and fixed grips.</strong> Press the cube into the floor and move the hand downward. Then grab a fixed climbing rung. Is the reaction sufficient to lift the player? Try custom reaction off to see why one-way object tracking cannot lift a player from a fixed grip. If force is capped below the required load, changing damping cannot fix it.</li>
+<li><strong>Rotating tool.</strong> Grab away from a prop’s center, rotate through all three axes, and press an end against the wall. This exposes incorrect point velocity, inertia conversion, and anchor definitions.</li>
+<li><strong>External impact.</strong> While holding a prop still, collide another body with it. Does the system yield, recover, or erase the impact? Compare with the locomotion motor active and inactive when investigating ownership of motion.</li>
+<li><strong>Release and reacquire.</strong> Release at rest, during a sweep, and while blocked. Regrab a rotated object. Repeat the live mode switch several times. Check the Inspector for orphaned or stacked joints.</li>
+</ol>
+<p>Use the same object, grip point, posture, and wall for the A/B. Get Duck or FireBlast to switch modes without announcing the selection, then ask which feels better and why. Record controller mode, mass, gains, cap, fixed step, and headset refresh rate with each conclusion. One nice-looking graph is not enough to choose locomotion feel.</p>
+<h3 id="a-sensible-tuning-order" tabindex="-1">A sensible tuning order<a class="heading-link" href="#a-sensible-tuning-order" aria-label="Link to A sensible tuning order">#</a></h3>
+<p>First fix scale, collision layers, attachment frames, tracking validity, and velocity spaces. Then choose a force/torque budget. Start around damping ratio 1 and increase frequency until recovery is useful. Repeat under contact, not only in free air. If response saturates, decide whether the force budget should change before raising frequency again.</p>
+<p>Increase solver iterations locally on the player and held prop only when you can reproduce a joint/contact convergence problem. More iterations cost CPU and do not correct a bad target frame. Profile on the headset; desktop success is not a Quest performance result. <a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Rigidbody-solverIterations.html">Unity: solverIterations</a>.</p>
+<h2 id="11-troubleshooting" tabindex="-1">11. Troubleshooting<a class="heading-link" href="#11-troubleshooting" aria-label="Link to 11. Troubleshooting">#</a></h2>
+<div class="table-wrap"><div class="table-scroll" tabindex="0" role="region" aria-label="11. Troubleshooting table"><table>
+<thead>
+<tr>
+<th scope="col">Symptom</th>
+<th scope="col">First thing to inspect</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Object trails more as damping rises</td>
+<td>Absolute velocity damping, missing target velocity, or the native baseline’s moving-anchor velocity assumption.</td>
+</tr>
+<tr>
+<td>Immediate spin or snap at pickup</td>
+<td>Captured grip offset, joint/rest frame, quaternion order, and radians versus degrees.</td>
+</tr>
+<tr>
+<td>Player never reacts to a blocked object</td>
+<td>Kinematic player/proxy, object-only force application, or another script overwriting velocity.</td>
+</tr>
+<tr>
+<td>Player reacts twice as strongly in CJ mode</td>
+<td>Manual reaction force left active alongside native joint solving.</td>
+</tr>
+<tr>
+<td>Cube follows through a wall</td>
+<td>Kinematic/transform ownership, collider/layer setup, force budget, and collision detection.</td>
+</tr>
+<tr>
+<td>Mode switch creates a kick</td>
+<td>Previous drive still active, attachment recaptured incorrectly, or stale derivative history.</td>
+</tr>
+<tr>
+<td>More frequency barely helps</td>
+<td>Force saturation, insufficient solver convergence, delayed target samples, or unrealistic gain expectations.</td>
+</tr>
+<tr>
+<td>Long tool jitters while cube is fine</td>
+<td>Anchor leverage, rotational effective mass, inertia, torque cap, and angular speed limits.</td>
+</tr>
+<tr>
+<td>XR hands stay at the origin</td>
+<td>OpenXR profile, enabled serialized actions, device bindings, and valid tracking state.</td>
+</tr>
+<tr>
+<td>Head or hands move twice</td>
+<td>Two scripts writing the same tracked transforms or duplicate tracking origins.</td>
+</tr>
+<tr>
+<td>Discontinuity after recenter</td>
+<td>World/reference frame reset and derivative histories.</td>
+</tr>
+<tr>
+<td>Works on PC, misses frames on Quest</td>
+<td>Actual CPU/GPU timing, physics work per frame, solver counts, collider complexity, and rendering load.</td>
+</tr>
+</tbody></table>
+</div><div class="table-hint" aria-hidden="true">Swipe or scroll horizontally to see the full table</div></div>
+<h2 id="12-quest-build-and-the-webxr-companion" tabindex="-1">12. Quest build and the WebXR companion<a class="heading-link" href="#12-quest-build-and-the-webxr-companion" aria-label="Link to 12. Quest build and the WebXR companion">#</a></h2>
+<p>For a native Quest build, install the Android modules, open <strong>File → Build Profiles</strong>, and select <strong>Meta Quest</strong> where available. Earlier Unity 6 workflows can use <strong>Android</strong>. Enable OpenXR for that target, select the required Quest support feature offered by your installed provider, and run platform validation. Follow the provider’s current validation for graphics/API requirements rather than copying an old screenshot. <a href="https://developers.meta.com/vr/documentation/unity/unity-tutorial-hello-world-manual-steps/">Meta’s manual project setup</a>.</p>
+<p>Use <strong>IL2CPP</strong> and <strong>ARM64</strong> for the device build, assign a unique application identifier, and include the generated scene. Put the headset in developer mode, connect USB, accept its debugging prompt, and use Build and Run. Make the first run a development build so errors and timing can be inspected. <a href="https://developers.meta.com/vr/documentation/unity/unity-prepare-for-publish/">Meta’s Unity player-setting guidance</a>.</p>
+<p>For the <a href="../vr/">WebXR companion</a>, open the HTTPS page in a browser that supports immersive VR on your headset and use its Enter VR control. Desktop controls provide a way to explore the scene without a headset. The companion uses Three.js rendering and Cannon physics, and preserves the held object when switching modes.</p>
+<div class="table-wrap"><div class="table-scroll" tabindex="0" role="region" aria-label="12. Quest build and the WebXR companion table"><table>
+<thead>
+<tr>
+<th scope="col">Browser experiment</th>
+<th scope="col">What to compare in Unity</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>One-way PD</td>
+<td>Relative PD with custom reaction disabled.</td>
+</tr>
+<tr>
+<td>Reaction PD</td>
+<td>Relative PD with custom reaction enabled.</td>
+</tr>
+<tr>
+<td>Backward PD</td>
+<td>Backward PD with the reaction path enabled.</td>
+</tr>
+<tr>
+<td>Cannon point joint</td>
+<td>Native solver connection concept; not a ConfigurableJoint reproduction.</td>
+</tr>
+</tbody></table>
+</div><div class="table-hint" aria-hidden="true">Swipe or scroll horizontally to see the full table</div></div>
+<p>The browser’s point joint uses a shared custom angular PD controller. It does <strong>not</strong> implement Unity’s Slerp drive or the complete PhysX ConfigurableJoint. Explore force paths and controller behavior in the browser, then validate the Unity implementation separately.</p>
+<h3 id="acceptance-checklist-before-sharing-a-build" tabindex="-1">Acceptance checklist before sharing a build<a class="heading-link" href="#acceptance-checklist-before-sharing-a-build" aria-label="Link to Acceptance checklist before sharing a build">#</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> Fresh Unity import compiles without errors; generated scene and action references are present.</li>
+<li><input disabled="" type="checkbox"> Desktop grab, release, restart, and all three live mode selections work.</li>
+<li><input disabled="" type="checkbox"> Headset floor height, scale, left/right poses, grip input, and turning are correct.</li>
+<li><input disabled="" type="checkbox"> Tracking interruption and recentering do not generate a large impulse.</li>
+<li><input disabled="" type="checkbox"> The same held object survives repeated CJ → relative PD → backward PD switches.</li>
+<li><input disabled="" type="checkbox"> Wall and floor contacts transfer load through the intended body/proxy path.</li>
+<li><input disabled="" type="checkbox"> Rotated pickup and all-axis tool rotations preserve the captured grip.</li>
+<li><input disabled="" type="checkbox"> Releases preserve sensible physical momentum without a duplicate throw boost.</li>
+<li><input disabled="" type="checkbox"> No growing number of joints, orphaned holds, or persistent collision-ignore pairs.</li>
+<li><input disabled="" type="checkbox"> Native headset frame timing has been measured at the chosen refresh rate.</li>
+<li><input disabled="" type="checkbox"> Another person has performed the in-headset A/B and described the difference.</li>
+</ul>
+<p>Each prop has one owning hand; a two-handed rifle grip needs additional logic. This kit stops at local interaction. Multiplayer ownership, authoritative physics, reconciliation, avatar presentation, and networked throws require a separate design. First establish a grip that feels good and behaves predictably on one headset.</p>
+<h2 id="credits-and-foundations" tabindex="-1">Credits and foundations<a class="heading-link" href="#credits-and-foundations" aria-label="Link to Credits and foundations">#</a></h2>
+<p><strong>Trent Sterling / Tront and ChatGPT</strong> built the teaching lab, with the discussion and experiments from <strong>Ducky / Duck (SCUG)</strong> and <strong>FireBlast</strong>.</p>
+<p><strong>Digital Opus is the primary technical inspiration:</strong> <a href="https://digitalopus.ca/site/pd-controllers/">Controlling Objects With Forces and Torques I</a>, <a href="https://digitalopus.ca/site/controlling-objects-with-forces-and-torques-part-2/">Part II</a>, and <a href="https://github.com/Phong13/UsefulUtils">UsefulUtils</a>. David Wu’s backward PD presentation and the work of Jie Tan, C. Karen Liu, and Greg Turk provide related controller foundations.</p>
+<p><strong>Another Axiom</strong> provided the original <a href="https://github.com/Another-Axiom/GorillaLocomotion">GorillaLocomotion source</a>, included with its MIT license and pinned commit. The teaching motor is an adaptation and is not affiliated with or endorsed by Gorilla Tag or Another Axiom.</p>
+<p>Unity/OpenXR, PhysX, Three.js, and Cannon supply the underlying engine/runtime concepts or demo libraries. Their documentation and licenses remain attributed in the repository.</p>
+
+        <div class="next-step"><div><span class="eyebrow">TAKE IT INTO THE LAB</span><h2>Same object. Your verdict.</h2><p>Keep your grip, switch the controller, and compare the response.</p></div><a class="button primary" href="../vr/">Open Grab Lab <span aria-hidden="true">↗</span></a></div>
+      </main>
+    </div>
+
+    <footer class="footer"><div><b>PHYSICS GYM / TRONT</b><p>Trent Sterling + ChatGPT · Ducky / Duck (SCUG) · FireBlast</p><p>Primary technical inspiration: <a href="https://digitalopus.ca/site/pd-controllers/">Digital Opus</a>. Locomotion source: <a href="https://github.com/Another-Axiom/GorillaLocomotion">Another Axiom</a>.</p></div><nav aria-label="Footer navigation"><a href="../downloads/TrontPhysicsGym-Unity.zip" download>Unity starter kit</a><a href="https://github.com/TrentSterling/pid">Source + licenses</a><a href="#tutorial-title">Back to top ↑</a></nav></footer>
+  </div>
+  <p class="sr-only" id="copy-status" role="status" aria-live="polite"></p>
+  <script>
+    (() => {
+      const status = document.getElementById('copy-status');
+      document.querySelectorAll('[data-copy-code]').forEach(button => {
+        button.hidden = false;
+        button.addEventListener('click', async () => {
+          const code = document.getElementById(button.dataset.copyCode);
+          try {
+            if (!navigator.clipboard) throw new Error('Clipboard unavailable');
+            await navigator.clipboard.writeText(code.textContent);
+            button.textContent = 'Copied';
+            status.textContent = 'Code example copied to clipboard.';
+          } catch {
+            const range = document.createRange();
+            range.selectNodeContents(code);
+            const selection = window.getSelection();
+            selection.removeAllRanges(); selection.addRange(range);
+            button.textContent = 'Code selected';
+            status.textContent = 'Code selected. Use your browser copy command.';
+          }
+          window.setTimeout(() => { button.textContent = 'Copy code'; }, 2000);
+        });
+      });
+
+      const headings = Array.from(document.querySelectorAll('.doc-body > h2[id]'));
+      const links = Array.from(document.querySelectorAll('[data-chapter]'));
+      const progress = document.getElementById('reading-progress');
+      let queued = false;
+      function updateReadingPosition() {
+        queued = false;
+        let current = headings[0]?.id;
+        for (const heading of headings) {
+          if (heading.getBoundingClientRect().top <= 160) current = heading.id;
+          else break;
+        }
+        for (const link of links) {
+          const active = link.dataset.chapter === current;
+          link.classList.toggle('is-active', active);
+          if (active) link.setAttribute('aria-current', 'location');
+          else link.removeAttribute('aria-current');
+        }
+        const maximum = document.documentElement.scrollHeight - window.innerHeight;
+        progress.style.transform = 'scaleX(' + (maximum > 0 ? Math.min(1, Math.max(0, window.scrollY / maximum)) : 0) + ')';
+      }
+      function scheduleUpdate() {
+        if (!queued) { queued = true; window.requestAnimationFrame(updateReadingPosition); }
+      }
+      window.addEventListener('scroll', scheduleUpdate, { passive: true });
+      window.addEventListener('resize', scheduleUpdate, { passive: true });
+      document.querySelectorAll('.mobile-toc a').forEach(link => link.addEventListener('click', () => {
+        document.querySelector('.mobile-toc').open = false;
+      }));
+      updateReadingPosition();
+    })();
+  </script>
+</body>
+</html>

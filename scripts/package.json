@@ -1,0 +1,15 @@
+{
+  "name": "tront-physics-gym-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:tutorial": "node build-tutorial.mjs",
+    "check:tutorial": "node build-tutorial.mjs --check"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "marked": "17.0.5"
+  }
+}

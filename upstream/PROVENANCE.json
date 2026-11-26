@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/Another-Axiom/GorillaLocomotion",
+  "commit": "bc42e959cf3e69178f9147d89bd3ffeab1c432c4",
+  "license": "MIT",
+  "files": {
+    "GorillaLocomotion/Player.cs": "a8907bc43bb27415e87560580859967508486055",
+    "GorillaLocomotion/Surface.cs": "ac2f09d6b6695aacc476eb8f3805ff070f259620",
+    "GorillaLocomotion/LICENSE": "37e4b38f62278676151342dd07453a25fb1bcbf2",
+    "GorillaLocomotion/README.md": "31dbb1fca8e93c5ddb912c4ff14252a8483e9f56"
+  }
+}

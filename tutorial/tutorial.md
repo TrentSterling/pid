@@ -231,6 +231,8 @@ Keep gravity enabled while learning how weight transfers. A held object can sett
 
 On release, remove the grab controller and retain the prop’s physically accumulated velocity. Do not add a second full controller throw velocity on top unless you deliberately designed that blend. A wall-blocked prop should not inherit a throw that only the invisible target performed.
 
+The sample immediately restores player–prop collisions on release. Releasing a prop inside the player capsule can therefore cause a depenetration kick. A production refinement is to keep that collision pair ignored until the bodies separate; include overlapping release in your acceptance tests.
+
 Interpolation can make rendered rigidbodies look smoother between physics steps; it does not increase simulation frequency. Keep the physics state and rendered pose distinct when diagnosing lag. [Unity: Rigidbody interpolation](https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Rigidbody-interpolation.html).
 
 ## 10. Run these experiments in order

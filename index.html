@@ -7,7 +7,7 @@
   <meta name="description" content="Eight physics controllers, one synchronized workout. Compare PD tracking, backward PD, prediction, feedforward and adaptive damping in a 3D gym by Tront.">
   <title>Physics Gym · Tront Labs</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='9' fill='%23101722'/%3E%3Cpath d='M8 28V18m8 10V9m8 19V14m8 14V5' stroke='%2367d8c5' stroke-width='4'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./styles.css?v=2.0.1">
+  <link rel="stylesheet" href="./styles.css?v=2.0.2">
   <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 </head>
 <body>
@@ -30,7 +30,7 @@
           </div>
           <div id="load-error" class="load-error" hidden></div>
           <div class="scene-key"><span><i class="key-target"></i>Tracked target</span><span><i class="key-contact"></i>Contact</span><span><i class="key-error"></i>Tracking gap</span></div>
-          <div id="selection-tag" class="selection-tag">Inspecting Backward PD</div>
+          <div id="selection-tag" class="selection-tag"><span id="selection-label">Inspecting Backward PD</span><span id="selection-values"></span></div>
         </div>
         <div class="transport">
           <div class="transport-primary"><button id="pause" class="primary" aria-label="Pause simulation">Pause</button><button id="restart" title="Reset all players and measurements (R)">Restart</button><button id="impulse" title="Apply the same velocity kick to all players (I)">Impulse all</button><button id="back" title="Nudge all players away from the wall">Nudge back</button></div>
@@ -77,7 +77,7 @@
   <div id="toast" class="toast" role="status" hidden></div>
 </div>
 <script type="module">
-import('./app.js?v=2.0.1').catch(error => {
+import('./app.js?v=2.0.2').catch(error => {
   console.error(error);
   const banner = document.getElementById('load-error');
   banner.hidden = false;

@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   pages: write
+  actions: read
 
 concurrency:
   group: pid-pages
@@ -54,24 +55,42 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # GITHUB_TOKEN pushes do not trigger a Pages build automatically.
-          previous_created="$(gh api "repos/${GITHUB_REPOSITORY}/pages/builds/latest" --jq '.created_at' 2>/dev/null || true)"
+          # Explicitly request publication instead of relying on the branch push.
           gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds" --jq '{status: .status, url: .url}'
-          for attempt in {1..60}; do
-            if build="$(gh api "repos/${GITHUB_REPOSITORY}/pages/builds/latest" --jq '[.status, .commit, .created_at] | @tsv')"; then
-              read -r status commit created <<< "$build"
-              if [ "$commit" = "$GITHUB_SHA" ] && [ "$status" = 'built' ]; then
-                echo "GitHub Pages built ${GITHUB_SHA}."
+          # Native Pages jobs may queue for several minutes. Match only the
+          # native workflow, publishing branch, and exact source revision.
+          deadline=$((SECONDS + 600))
+          failed_polls=0
+          previous_state=''
+          while (( SECONDS < deadline )); do
+            if runs="$(gh api --method GET "repos/${GITHUB_REPOSITORY}/actions/runs" -f head_sha="$GITHUB_SHA" -f event=dynamic -f per_page=100 --jq '.workflow_runs')"; then
+              native_runs="$(jq --arg sha "$GITHUB_SHA" '[.[] | select(.head_sha == $sha and .head_branch == "gh-pages" and .event == "dynamic" and .path == "dynamic/pages/pages-build-deployment")]' <<< "$runs")"
+              success_url="$(jq -r '[.[] | select(.status == "completed" and .conclusion == "success")] | sort_by(.id) | last | .html_url // empty' <<< "$native_runs")"
+              if [ -n "$success_url" ]; then
+                echo "GitHub Pages deployed ${GITHUB_SHA}: ${success_url}"
                 exit 0
               fi
-              if [ "$commit" = "$GITHUB_SHA" ] && [ "$status" = 'errored' ] && [ "$created" != "$previous_created" ]; then
-                echo '::error::The requested GitHub Pages build failed.'
-                exit 1
+              state="$(jq -r 'sort_by(.id) | reverse | map("\(.id):\(.status)/\(.conclusion // "pending")") | join(", ")' <<< "$native_runs")"
+              if [ "$state" != "$previous_state" ]; then
+                echo "Waiting for native Pages deployment: ${state:-not yet listed}"
+                previous_state="$state"
+              fi
+              active_count="$(jq '[.[] | select(.status != "completed")] | length' <<< "$native_runs")"
+              failure_url="$(jq -r 'sort_by(.id) | last | select(.status == "completed" and (.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required" or .conclusion == "startup_failure")) | .html_url // empty' <<< "$native_runs")"
+              if [ "$active_count" -eq 0 ] && [ -n "$failure_url" ]; then
+                failed_polls=$((failed_polls + 1))
+                if [ "$failed_polls" -ge 3 ]; then
+                  echo "::error::The native Pages deployment failed: ${failure_url}"
+                  exit 1
+                fi
+              else
+                # A cancelled duplicate is harmless while its replacement runs.
+                failed_polls=0
               fi
             fi
             sleep 5
           done
-          echo '::error::Timed out waiting for the expected Pages commit.'
+          echo '::error::Timed out after 10 minutes waiting for the expected native Pages deployment.'
           exit 1
 
       - name: Verify every public application asset matches the source

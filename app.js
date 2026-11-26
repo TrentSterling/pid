@@ -1,5 +1,5 @@
-import { GymSimulation, CONTROLLERS, EXERCISES, DEFAULTS, PRESETS } from './sim.js?v=2.0.1';
-import { GymScene } from './scene.js?v=2.0.1';
+import { GymSimulation, CONTROLLERS, EXERCISES, DEFAULTS, PRESETS } from './sim.js?v=2.0.2';
+import { GymScene } from './scene.js?v=2.0.2';
 
 const $ = id => document.getElementById(id);
 const sim = new GymSimulation();
@@ -8,7 +8,7 @@ try {
   scene = new GymScene($('viewport'), CONTROLLERS);
 } catch (error) {
   console.warn('WebGL is unavailable. Using the canvas 3D view.', error);
-  const { CanvasGymScene } = await import('./canvas-scene.js?v=2.0.1');
+  const { CanvasGymScene } = await import('./canvas-scene.js?v=2.0.2');
   scene = new CanvasGymScene($('viewport'), CONTROLLERS);
   $('renderer-mode').hidden = false;
 }
@@ -118,7 +118,7 @@ function select(index) {
   $('controller-description').textContent = controller.description;
   $('controller-formula').textContent = controller.formula;
   $('controller-tip').textContent = controller.tip;
-  $('selection-tag').textContent = `Inspecting ${controller.short}`;
+  $('selection-label').textContent = `Inspecting ${controller.short}`;
   laneNodes.forEach((node, i) => { node.button.classList.toggle('selected', i === index); node.button.setAttribute('aria-pressed', String(i === index)); });
   scoreNodes.forEach((node, i) => node.row.classList.toggle('selected', i === index));
   legendNodes.forEach((node, i) => { node.classList.toggle('selected', i === index); node.setAttribute('aria-pressed', String(i === index)); });
@@ -250,6 +250,7 @@ $('fit').addEventListener('click', () => setCamera('front'));
 function syncLayout() {
   scene.setLayout(twoRows);
   $('lane-strip').classList.toggle('two-rows', twoRows);
+  $('viewport').classList.toggle('two-rows', twoRows);
   $('layout-button').textContent = twoRows ? 'Single row' : '2 rows';
   scene.fit(viewMode, selected);
 }
@@ -346,13 +347,15 @@ function updateMetrics() {
     write(cells[5], `${s.contacts} / 2`);
     cells[5].classList.toggle('touching', s.contacts > 0);
   });
+  const inspected = sim.players[selected].stats;
+  write($('selection-values'), `${number(inspected.error * 100)} cm gap · ${number(inspected.force, 0)} N · ${inspected.contacts}/2 contact`);
 }
 $('export').addEventListener('click', () => {
   const snapshot = {
-    version: '2.0.1', generatedAt: new Date().toISOString(), exercise: sim.exercise, simulationSeconds: sim.time,
+    version: '2.0.2', generatedAt: new Date().toISOString(), exercise: sim.exercise, simulationSeconds: sim.time,
     parameters: { ...sim.params }, repeat, trialDuration,
     model: 'Educational translational contact approximation. No integral term. Not a PhysX benchmark.',
-    units: { error: 'm', rms: 'm', peak: 'm', speed: 'm/s', force: 'N', peakHeight: 'm' },
+    units: { error: 'm', rms: 'm', peak: 'm', freeRms: 'm', speed: 'm/s', force: 'N', peakHeight: 'm' },
     results: sim.players.map((player, i) => ({ controller: CONTROLLERS[i].name, ...player.stats })),
     historyColumns: ['seconds', 'error_m', 'speed_m_per_s', 'force_N'],
     last12Seconds: sim.players.map((player, i) => ({ controller: CONTROLLERS[i].id, samples: player.history }))

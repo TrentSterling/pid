@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const SPACING = 1.82, LANE = 1.72, WALL = 1.5, TRAIL = 36;
+const SPACING = 1.5, LANE = 1.42, WALL = 1.5, TRAIL = 36;
 const v = () => ({ x: 0, y: 0, z: 0 });
 function lerp(out, previous, current, alpha) {
   const p = previous || current;
@@ -26,6 +26,10 @@ export class CanvasGymScene {
     Object.assign(this.canvas.style, { display: 'block', width: '100%', height: '100%', touchAction: 'none' });
     this.context = this.canvas.getContext('2d', { alpha: false });
     if (!this.context) throw new Error('Canvas rendering is unavailable.');
+    this.surfaceCanvas = document.createElement('canvas');
+    this.surfaceContext = this.surfaceCanvas.getContext('2d', { alpha: false });
+    this.surfaceTransform = new Float64Array(32);
+    this.surfaceDirty = true;
     container.prepend(this.canvas);
     this.camera = new THREE.OrthographicCamera(-8, 8, 4, -4, 0.1, 150);
     this.orbit = new OrbitControls(this.camera, this.canvas);
@@ -74,14 +78,18 @@ export class CanvasGymScene {
     this.ratio = Math.min(window.devicePixelRatio || 1, 2);
     this.canvas.width = Math.round(width * this.ratio);
     this.canvas.height = Math.round(height * this.ratio);
+    this.surfaceCanvas.width = this.canvas.width;
+    this.surfaceCanvas.height = this.canvas.height;
+    this.surfaceDirty = true;
     this.fit(this.mode, this.selected);
   }
 
   _placeLanes() {
     const columns = this.twoRows ? 4 : 8;
     this.lanes.forEach((lane, i) => {
-      lane.offset.set(((columns - 1) / 2 - i % columns) * SPACING, 0, this.twoRows && i >= 4 ? 6.25 : 0);
+      lane.offset.set(((columns - 1) / 2 - i % columns) * SPACING, 0, this.twoRows && i < 4 ? 6.25 : 0);
     });
+    this.surfaceDirty = true;
   }
 
   _bounds(mode, selected) {
@@ -111,9 +119,9 @@ export class CanvasGymScene {
     const bounds = this._bounds(mode, this.selected);
     const center = new THREE.Vector3().addVectors(bounds.min, bounds.max).multiplyScalar(0.5);
     const direction = mode === 'top' ? new THREE.Vector3(0, 1, -0.06)
-      : mode === 'angled' ? new THREE.Vector3(0.31, this.twoRows ? 0.85 : 0.48, -1)
+      : mode === 'angled' ? new THREE.Vector3(0.31, 0.48, -1)
         : mode === 'focus' ? new THREE.Vector3(0.18, 0.38, -1)
-          : new THREE.Vector3(0, this.twoRows ? 0.95 : 0.43, -1);
+          : new THREE.Vector3(0, 0.43, -1);
     this.camera.position.copy(center).addScaledVector(direction.normalize(), 30);
     this.orbit.target.copy(center);
     this.camera.up.set(0, 1, 0);
@@ -200,10 +208,12 @@ export class CanvasGymScene {
       this._poly(lane, [left, 0, -4, right, 0, -4, right, 0, WALL, left, 0, WALL], lane.color);
       ctx.globalAlpha = 1;
     }
-    if (!this.twoRows || lane.index >= 4) this._poly(lane, [left, 0, WALL, right, 0, WALL, right, 3, WALL, left, 3, WALL], '#203244');
+    if (!this.twoRows || lane.index < 4) this._poly(lane, [left, 0, WALL, right, 0, WALL, right, 3, WALL, left, 3, WALL], '#203244');
     for (let z = -4; z <= WALL; z += 0.5) this._line(lane, left, 0, z, right, 0, z, '#40566d', 0.8);
     for (const x of [left, 0, right]) this._line(lane, x, 0, -4, x, 0, WALL, '#40566d', 0.8);
-    for (let y = 0; y <= 3; y += 0.5) this._line(lane, left, y, WALL, right, y, WALL, '#40566d', 0.8);
+    if (!this.twoRows || lane.index < 4) {
+      for (let y = 0; y <= 3; y += 0.5) this._line(lane, left, y, WALL, right, y, WALL, '#40566d', 0.8);
+    }
     this._line(lane, left, 0, WALL, left, 3, WALL, '#5e7488');
     this._line(lane, right, 0, WALL, right, 3, WALL, '#5e7488');
     this._line(lane, left + 0.07, 3.02, WALL, right - 0.07, 3.02, WALL, lane.color, lane.index === this.selected ? 3 : 2);
@@ -251,6 +261,47 @@ export class CanvasGymScene {
     for (const hand of lane.hands) this._ball(lane, hand.position.x, hand.position.y, hand.position.z, 0.105, lane.color);
   }
 
+  _drawSurfaces(sim) {
+    const world = this.camera.matrixWorld.elements;
+    const projection = this.camera.projectionMatrix.elements;
+    let dirty = this.surfaceDirty || this.surfaceSelection !== this.selected
+      || this.surfaceExercise !== sim.exercise || this.surfaceStart !== sim.params.startDistance;
+    for (let i = 0; i < 16 && !dirty; i += 1) {
+      dirty = Math.abs(this.surfaceTransform[i] - world[i]) > 1e-8
+        || Math.abs(this.surfaceTransform[i + 16] - projection[i]) > 1e-8;
+    }
+    if (dirty || !this.surfaceContext) {
+      const displayContext = this.context;
+      this.context = this.surfaceContext || displayContext;
+      const ctx = this.context;
+      ctx.setTransform(this.ratio || 1, 0, 0, this.ratio || 1, 0, 0);
+      ctx.globalAlpha = 1; ctx.setLineDash([]);
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.fillStyle = '#0d1824'; ctx.fillRect(0, 0, this.width, this.height);
+      this.order.sort((a, b) => {
+        this._scratch.copy(this.lanes[a].offset).project(this.camera);
+        const depth = this._scratch.z;
+        this._scratch.copy(this.lanes[b].offset).project(this.camera);
+        return this._scratch.z - depth;
+      });
+      for (const index of this.order) this._drawLane(this.lanes[index], sim);
+      this.context = displayContext;
+      for (let i = 0; i < 16; i += 1) {
+        this.surfaceTransform[i] = world[i]; this.surfaceTransform[i + 16] = projection[i];
+      }
+      this.surfaceSelection = this.selected;
+      this.surfaceExercise = sim.exercise;
+      this.surfaceStart = sim.params.startDistance;
+      this.surfaceDirty = false;
+    }
+    if (this.surfaceContext) {
+      this.context.setTransform(1, 0, 0, 1, 0, 0);
+      this.context.drawImage(this.surfaceCanvas, 0, 0);
+    }
+    this.context.setTransform(this.ratio || 1, 0, 0, this.ratio || 1, 0, 0);
+    this.context.lineCap = 'round'; this.context.lineJoin = 'round';
+  }
+
   render(sim, alpha = 1, opts = {}) {
     if (this.disposed) return;
     alpha = Math.max(0, Math.min(1, alpha));
@@ -289,18 +340,9 @@ export class CanvasGymScene {
     }
     this.orbit.update(); this.camera.updateMatrixWorld(true);
     const ctx = this.context;
-    ctx.setTransform(this.ratio || 1, 0, 0, this.ratio || 1, 0, 0);
-    ctx.fillStyle = '#0d1824'; ctx.fillRect(0, 0, this.width, this.height);
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     this.scale = this.height / (this.camera.top - this.camera.bottom) * this.camera.zoom;
-    this.order.sort((a, b) => {
-      this._scratch.copy(this.lanes[a].offset).project(this.camera);
-      const depth = this._scratch.z;
-      this._scratch.copy(this.lanes[b].offset).project(this.camera);
-      return this._scratch.z - depth;
-    });
     // Surfaces first: the wire-only front walls in 2-row mode never hide athletes.
-    for (const index of this.order) this._drawLane(this.lanes[index], sim);
+    this._drawSurfaces(sim);
     for (const index of this.order) this._drawFigure(this.lanes[index], opts);
     // Diagnostic overlays remain visible through the tested contact surfaces.
     for (const lane of this.lanes) for (let i = 0; i < 2; i += 1) {
@@ -330,5 +372,6 @@ export class CanvasGymScene {
     this.resizeObserver.disconnect();
     this.orbit.dispose();
     this.canvas.remove();
+    this.surfaceCanvas.width = this.surfaceCanvas.height = 1;
   }
 }

@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const SPACING = 1.82;
-const LANE_WIDTH = 1.72;
+const SPACING = 1.5;
+const LANE_WIDTH = 1.42;
 const WALL_Z = 1.5;
 const HAND_RADIUS = 0.105;
 const TRAIL_POINTS = 36;
@@ -157,10 +157,13 @@ export class GymScene {
     for (const x of [-LANE_WIDTH / 2, 0, LANE_WIDTH / 2]) {
       gridVertices.push(x, 0.003, -4, x, 0.003, WALL_Z);
     }
-    for (let y = 0; y <= 3; y += 0.5) {
-      gridVertices.push(-LANE_WIDTH / 2, y, WALL_Z + 0.015, LANE_WIDTH / 2, y, WALL_Z + 0.015);
-    }
     group.add(this._segments(gridVertices, this.material.grid));
+    const wallVertices = [];
+    for (let y = 0; y <= 3; y += 0.5) {
+      wallVertices.push(-LANE_WIDTH / 2, y, WALL_Z + 0.015, LANE_WIDTH / 2, y, WALL_Z + 0.015);
+    }
+    const wallGrid = this._segments(wallVertices, this.material.grid);
+    group.add(wallGrid);
     for (const x of [-LANE_WIDTH / 2, LANE_WIDTH / 2]) {
       const post = this._mesh(this.geometry.box, this.material.trim, 0.035, 3.03, 0.045);
       post.position.set(x, 1.5, WALL_Z + 0.035);
@@ -254,7 +257,7 @@ export class GymScene {
       group.add(physical, cuff, upper, lower, elbow, shoulder, target, contact, error, force, trail);
       return { physical, cuff, upper, lower, elbow, shoulder, target, contact, error, force, trail, handIndex, trailReady: false };
     });
-    return { group, figure, hands, shadow, ceiling, selection, startLine, headerBar, bodyMaterial, accentMaterial, back };
+    return { group, figure, hands, shadow, ceiling, selection, startLine, headerBar, bodyMaterial, accentMaterial, back, wallGrid };
   }
 
   _placeLanes() {
@@ -262,9 +265,10 @@ export class GymScene {
     for (let i = 0; i < this.lanes.length; i += 1) {
       const column = i % columns;
       // The camera faces +Z; reversing X keeps lane 01 at screen left.
-      this.lanes[i].group.position.set(((columns - 1) / 2 - column) * SPACING, 0, this.twoRows && i >= 4 ? 6.25 : 0);
+      this.lanes[i].group.position.set(((columns - 1) / 2 - column) * SPACING, 0, this.twoRows && i < 4 ? 6.25 : 0);
       // Wire frames retain the contact surface without hiding the second row.
-      this.lanes[i].back.visible = !this.twoRows || i >= 4;
+      this.lanes[i].back.visible = !this.twoRows || i < 4;
+      this.lanes[i].wallGrid.visible = !this.twoRows || i < 4;
     }
   }
 
@@ -327,10 +331,10 @@ export class GymScene {
     const direction = mode === 'top'
       ? new THREE.Vector3(0, 1, -0.06)
       : mode === 'angled'
-        ? new THREE.Vector3(0.31, this.twoRows ? 0.85 : 0.48, -1)
+        ? new THREE.Vector3(0.31, 0.48, -1)
         : mode === 'focus'
           ? new THREE.Vector3(0.18, 0.38, -1)
-          : new THREE.Vector3(0, this.twoRows ? 0.95 : 0.43, -1);
+          : new THREE.Vector3(0, 0.43, -1);
     this.camera.position.copy(center).addScaledVector(direction.normalize(), 30);
     this.orbit.target.copy(center);
     this.camera.up.copy(UP);

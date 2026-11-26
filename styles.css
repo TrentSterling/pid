@@ -7,3 +7,11 @@
 @media(prefers-reduced-motion:reduce){button{transition:none}}
 
 #renderer-mode{color:#c8b58b;font-size:.7rem}@media(max-width:640px){#renderer-mode{display:none}}
+
+/* Keep the hand comparisons large, and the selected measurements nearby. */
+.viewport.two-rows{height:clamp(600px,46vw,740px)}
+.selection-tag{padding:6px 9px;bottom:13px;background:#0c1721c9;border-radius:5px;text-align:right}
+.selection-tag span{display:block}
+#selection-values{font:500 .7rem/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;color:#c7def4;font-variant-numeric:tabular-nums}
+@media(max-width:1500px){.lane-tab .lane-number{display:none}}
+@media(max-width:640px){.viewport.two-rows{height:580px}.lane-strip.two-rows .lane-name{white-space:normal;min-height:2.3em;overflow:visible;text-overflow:clip}}

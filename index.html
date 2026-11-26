@@ -7,7 +7,7 @@
   <meta name="description" content="Eight physics controllers, one synchronized workout. Compare PD tracking, backward PD, prediction, feedforward and adaptive damping in a 3D gym by Tront.">
   <title>Physics Gym · Tront Labs</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='9' fill='%23101722'/%3E%3Cpath d='M8 28V18m8 10V9m8 19V14m8 14V5' stroke='%2367d8c5' stroke-width='4'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./styles.css?v=2.0.0">
+  <link rel="stylesheet" href="./styles.css?v=2.0.1">
   <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 </head>
 <body>
@@ -20,7 +20,7 @@
   <main class="workbench">
     <div class="main-column">
       <section class="arena-panel" aria-label="Controller comparison gym">
-        <div class="session-bar"><div class="session-status"><span id="run-indicator" class="live-dot"></span><span id="run-state">Loading</span><span class="divider-text">/</span><span id="clock" class="clock">00:00.00</span><span id="run-duration" class="quiet">of 20 s</span></div><div class="session-info"><span id="physics-rate">90 Hz physics</span><span id="fps">— fps</span></div></div>
+        <div class="session-bar"><div class="session-status"><span id="run-indicator" class="live-dot"></span><span id="run-state">Loading</span><span class="divider-text">/</span><span id="clock" class="clock">00:00.00</span><span id="run-duration" class="quiet">of 20 s</span></div><div class="session-info"><span id="physics-rate">90 Hz physics</span><span id="renderer-mode" title="WebGL is unavailable in this browser. The canvas view uses the same simulation and Three.js camera controls." hidden>Canvas 3D</span><span id="fps">— fps</span></div></div>
         <div id="exercise-tabs" class="exercise-tabs" role="group" aria-label="Exercise"></div>
         <p id="exercise-description" class="exercise-description">Loading the synchronized workout…</p>
         <div id="lane-strip" class="lane-strip" role="group" aria-label="Select controller lane"></div>
@@ -77,11 +77,11 @@
   <div id="toast" class="toast" role="status" hidden></div>
 </div>
 <script type="module">
-import('./app.js?v=2.0.0').catch(error => {
+import('./app.js?v=2.0.1').catch(error => {
   console.error(error);
   const banner = document.getElementById('load-error');
   banner.hidden = false;
-  banner.textContent = 'The 3D gym could not start. Check that WebGL is available, then reload the page. ' + error.message;
+  banner.textContent = 'The 3D gym could not start. Reload the page or check the browser console for details. ' + error.message;
   document.getElementById('run-state').textContent = 'Unable to start';
 });
 </script>

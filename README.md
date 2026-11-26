@@ -43,7 +43,7 @@ The memorable `/pid/` URL covers this family of experiments. **The current contr
 
 ## Implementation and limits
 
-Three.js renders the gym. The simulation uses a fixed physics timestep, with interpolation for smooth rendering and a bounded recent-history buffer for long trials. UI values update existing text nodes instead of rebuilding the scoreboard.
+Three.js renders the gym with WebGL. If WebGL is unavailable, a lightweight canvas renderer keeps the same simulation, camera controls, telemetry, and exercises running. Its simplified shading differs from the WebGL view. The simulation uses a fixed physics timestep, with interpolation for smooth rendering and a bounded recent-history buffer for long trials. UI values update existing text nodes instead of rebuilding the scoreboard.
 
 The physics is an **experimental translational contact model**, not PhysX, Rapier, or a measured Unity benchmark. The hands and body do not form a complete articulated rigidbody rig. There is no angular-inertia solve, joint solver, or full collision system. Force caps, approximate contact friction, and scripted inputs affect the results. Use this to understand and compare behavior, then validate the chosen technique in the actual game rig.
 
@@ -58,6 +58,7 @@ Application files:
 - `app.js`: UI, playback, graphs, and export.
 - `sim.js`: independent controller trials and metrics.
 - `scene.js`: Three.js rendering and camera controls.
+- `canvas-scene.js`: software fallback for browsers without WebGL.
 
 ## Hosting
 
@@ -68,7 +69,7 @@ Push updates to `main`. The [Publish and verify Physics Gym workflow](.github/wo
 1. Checks the required files and JavaScript module syntax.
 2. Fast-forwards `gh-pages` to the exact source commit without forcing over independent history.
 3. Explicitly requests a native Pages build and waits for that commit to finish.
-4. Downloads the public HTML, CSS, and all three JavaScript modules and verifies every file byte for byte.
+4. Downloads the public HTML, CSS, and all four JavaScript modules and verifies every file byte for byte.
 
 The empty `.nojekyll` marker preserves the static files as authored. Make ordinary edits on `main`; if `gh-pages` gains independent commits, reconcile them before the workflow can publish.
 

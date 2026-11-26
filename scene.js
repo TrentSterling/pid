@@ -80,9 +80,9 @@ export class GymScene {
       joint: new THREE.MeshStandardMaterial({ color: 0x26394a, metalness: 0.1, roughness: 0.5 }),
       visor: new THREE.MeshStandardMaterial({ color: 0x09131c, roughness: 0.14, metalness: 0.4 }),
       contact: new THREE.MeshBasicMaterial({ color: 0xff6f70, transparent: true, opacity: 0.95 }),
-      target: new THREE.LineBasicMaterial({ color: 0x70edc5, transparent: true, opacity: 0.85 }),
+      target: new THREE.LineBasicMaterial({ color: 0x70edc5, transparent: true, opacity: 0.85, depthTest: false, depthWrite: false }),
       grid: new THREE.LineBasicMaterial({ color: 0x4b6379, transparent: true, opacity: 0.52 }),
-      error: new THREE.LineDashedMaterial({ color: 0xf6bb66, dashSize: 0.065, gapSize: 0.035, transparent: true, opacity: 0.7 }),
+      error: new THREE.LineDashedMaterial({ color: 0xf6bb66, dashSize: 0.065, gapSize: 0.035, transparent: true, opacity: 0.7, depthTest: false, depthWrite: false }),
       ceiling: new THREE.MeshStandardMaterial({ color: 0x8c7d55, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }),
       shadow: new THREE.MeshBasicMaterial({ color: 0x040b12, transparent: true, opacity: 0.18, depthWrite: false }),
       start: new THREE.MeshBasicMaterial({ color: 0xd7e6f3, transparent: true, opacity: 0.65, depthWrite: false }),
@@ -232,6 +232,7 @@ export class GymScene {
       const elbow = this._mesh(this.geometry.sphere, this.material.joint, 0.063, 0.063, 0.063);
       const shoulder = this._mesh(this.geometry.sphere, bodyMaterial, 0.096, 0.096, 0.096);
       const target = this._targetRings();
+      target.renderOrder = 3;
       const contact = new THREE.Group();
       for (const rotationY of [0, Math.PI / 2]) {
         const ring = this._mesh(this.geometry.ring, this.material.contact, 0.151, 0.151, 0.151);
@@ -242,6 +243,7 @@ export class GymScene {
       errorGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
       errorGeometry.setAttribute('lineDistance', new THREE.BufferAttribute(new Float32Array(2), 1));
       const error = new THREE.Line(errorGeometry, this.material.error);
+      error.renderOrder = 3;
       error.frustumCulled = false;
       const force = new THREE.ArrowHelper(UP, new THREE.Vector3(), 0.1, 0xd3b0ff, 0.08, 0.06);
       const trailGeometry = new THREE.BufferGeometry();
@@ -252,7 +254,7 @@ export class GymScene {
       group.add(physical, cuff, upper, lower, elbow, shoulder, target, contact, error, force, trail);
       return { physical, cuff, upper, lower, elbow, shoulder, target, contact, error, force, trail, handIndex, trailReady: false };
     });
-    return { group, figure, hands, shadow, ceiling, selection, startLine, headerBar, bodyMaterial, accentMaterial };
+    return { group, figure, hands, shadow, ceiling, selection, startLine, headerBar, bodyMaterial, accentMaterial, back };
   }
 
   _placeLanes() {
@@ -261,6 +263,8 @@ export class GymScene {
       const column = i % columns;
       // The camera faces +Z; reversing X keeps lane 01 at screen left.
       this.lanes[i].group.position.set(((columns - 1) / 2 - column) * SPACING, 0, this.twoRows && i >= 4 ? 6.25 : 0);
+      // Wire frames retain the contact surface without hiding the second row.
+      this.lanes[i].back.visible = !this.twoRows || i >= 4;
     }
   }
 
@@ -282,13 +286,36 @@ export class GymScene {
       const x = lane.group.position.x;
       const z = lane.group.position.z + lane.figure.position.z;
       const y = lane.figure.position.y || 0.88;
-      return { min: new THREE.Vector3(x - 1.3, Math.max(0, y - 1.2), z - 1.7), max: new THREE.Vector3(x + 1.3, y + 1.25, z + 1.7) };
+      return this._includeAthletes({ min: new THREE.Vector3(x - 1.3, Math.max(0, y - 1.2), z - 1.7), max: new THREE.Vector3(x + 1.3, y + 1.25, z + 1.7) }, selected);
     }
     const halfWidth = (this.twoRows ? 4 : 8) * SPACING / 2;
-    return {
+    return this._includeAthletes({
       min: new THREE.Vector3(-halfWidth, -0.1, -4.05),
       max: new THREE.Vector3(halfWidth, 3.6, this.twoRows ? 7.85 : 1.65),
-    };
+    });
+  }
+
+  _includeAthletes(bounds, only = -1) {
+    for (let i = 0; i < this.lanes.length; i += 1) {
+      if (only >= 0 && i !== only) continue;
+      const lane = this.lanes[i], offset = lane.group.position, body = lane.figure.position;
+      bounds.min.x = Math.min(bounds.min.x, offset.x + body.x - 0.4);
+      bounds.max.x = Math.max(bounds.max.x, offset.x + body.x + 0.4);
+      bounds.min.y = Math.min(bounds.min.y, body.y - 0.43);
+      bounds.max.y = Math.max(bounds.max.y, body.y + 0.8);
+      bounds.min.z = Math.min(bounds.min.z, offset.z + body.z - 0.4);
+      bounds.max.z = Math.max(bounds.max.z, offset.z + body.z + 0.4);
+      for (const hand of lane.hands) {
+        const position = hand.physical.position;
+        bounds.min.x = Math.min(bounds.min.x, offset.x + position.x - 0.2);
+        bounds.max.x = Math.max(bounds.max.x, offset.x + position.x + 0.2);
+        bounds.min.y = Math.min(bounds.min.y, position.y - 0.2);
+        bounds.max.y = Math.max(bounds.max.y, position.y + 0.2);
+        bounds.min.z = Math.min(bounds.min.z, offset.z + position.z - 0.2);
+        bounds.max.z = Math.max(bounds.max.z, offset.z + position.z + 0.2);
+      }
+    }
+    return bounds;
   }
 
   fit(mode = 'front', selected = this.selected) {

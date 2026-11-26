@@ -1,14 +1,24 @@
-import { GymSimulation, CONTROLLERS, EXERCISES, DEFAULTS, PRESETS } from './sim.js?v=2.0.0';
-import { GymScene } from './scene.js?v=2.0.0';
+import { GymSimulation, CONTROLLERS, EXERCISES, DEFAULTS, PRESETS } from './sim.js?v=2.0.1';
+import { GymScene } from './scene.js?v=2.0.1';
 
 const $ = id => document.getElementById(id);
 const sim = new GymSimulation();
-const scene = new GymScene($('viewport'), CONTROLLERS);
+let scene;
+try {
+  scene = new GymScene($('viewport'), CONTROLLERS);
+} catch (error) {
+  console.warn('WebGL is unavailable. Using the canvas 3D view.', error);
+  const { CanvasGymScene } = await import('./canvas-scene.js?v=2.0.1');
+  scene = new CanvasGymScene($('viewport'), CONTROLLERS);
+  $('renderer-mode').hidden = false;
+}
 const options = { forces: false, targets: true, trails: false };
 let selected = 3;
 let paused = false;
 let slow = false;
-let twoRows = window.innerWidth < 800;
+const compactLayout = window.matchMedia('(max-width: 799px)');
+let twoRows = compactLayout.matches;
+let layoutChosenByUser = false;
 let viewMode = 'front';
 let graphMode = 0;
 let accumulator = 0;
@@ -48,6 +58,7 @@ CONTROLLERS.forEach((controller, i) => {
   lane.style.setProperty('--lane', controller.color);
   lane.innerHTML = `<span class="lane-name"><span class="lane-number">${String(i + 1).padStart(2, '0')}</span>${controller.short}</span><span class="lane-metric">0.0 cm RMS</span>`;
   lane.setAttribute('aria-label', `Inspect ${controller.name}`);
+  lane.title = controller.name;
   lane.addEventListener('click', () => select(i));
   $('lane-strip').append(lane);
   laneNodes.push({ button: lane, metric: lane.querySelector('.lane-metric') });
@@ -147,11 +158,10 @@ function addSlider(parent, definition) {
   input.addEventListener('input', () => {
     const value = Number(input.value);
     output.textContent = formatParameter(value, step, unit);
-    sim.setParams({ [key]: value });
+    applyParameters({ [key]: value });
     resetClock();
     refreshExercise();
     updateGains();
-    document.querySelectorAll('#presets button').forEach(button => button.classList.remove('active'));
   });
   parent.append(node);
   sliderNodes.set(key, { input, output, step, unit });
@@ -163,13 +173,24 @@ PRESETS.forEach((preset, i) => {
   button.textContent = preset.name;
   button.classList.toggle('active', i === 0);
   button.addEventListener('click', () => {
-    sim.setParams(preset.params);
+    applyParameters(preset.params);
     syncSettings(); resetClock(); refreshExercise();
-    document.querySelectorAll('#presets button').forEach(other => other.classList.toggle('active', other === button));
     notify(`${preset.name} applied to all lanes`);
   });
   $('presets').append(button);
 });
+function syncPresets() {
+  const matching = PRESETS.findIndex(preset => Object.entries(preset.params).every(([key, value]) => sim.params[key] === value));
+  document.querySelectorAll('#presets button').forEach((button, index) => {
+    const active = index === matching;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+}
+function applyParameters(patch) {
+  sim.setParams(patch);
+  syncPresets();
+}
 function updateGains() {
   const omega = Math.PI * 2 * sim.params.frequency;
   write($('kp'), Math.round(omega * omega).toLocaleString('en-US'));
@@ -182,6 +203,7 @@ function syncSettings() {
   $('noise').checked = sim.params.trackingNoise;
   $('lock').checked = sim.bodiesLocked;
   updateGains();
+  syncPresets();
 }
 function resetClock() {
   accumulator = 0;
@@ -213,10 +235,10 @@ $('back').addEventListener('click', () => { sim.impulse('back'); notify(sim.bodi
 $('slow').addEventListener('click', () => { slow = !slow; $('slow').setAttribute('aria-pressed', String(slow)); $('slow').textContent = slow ? '0.2× active' : '0.2× slow'; });
 $('repeat').addEventListener('change', updateRepeat);
 $('duration').addEventListener('change', updateRepeat);
-$('hz').addEventListener('change', () => { sim.setParams({ hz: Number($('hz').value) }); resetClock(); updateGains(); });
-$('lock').addEventListener('change', () => { sim.setParams({ lockBodies: $('lock').checked }); resetClock(); refreshExercise(); });
-$('noise').addEventListener('change', () => { sim.setParams({ trackingNoise: $('noise').checked }); resetClock(); });
-$('defaults').addEventListener('click', () => { sim.setParams(DEFAULTS); syncSettings(); resetClock(); refreshExercise(); notify('Default tuning restored'); });
+$('hz').addEventListener('change', () => { applyParameters({ hz: Number($('hz').value) }); resetClock(); updateGains(); });
+$('lock').addEventListener('change', () => { applyParameters({ lockBodies: $('lock').checked }); resetClock(); refreshExercise(); });
+$('noise').addEventListener('change', () => { applyParameters({ trackingNoise: $('noise').checked }); resetClock(); });
+$('defaults').addEventListener('click', () => { applyParameters(DEFAULTS); syncSettings(); resetClock(); refreshExercise(); notify('Default tuning restored'); });
 ['forces', 'targets', 'trails'].forEach(id => $(id).addEventListener('change', () => { options[id] = $(id).checked; }));
 function setCamera(mode) {
   viewMode = mode;
@@ -231,7 +253,12 @@ function syncLayout() {
   $('layout-button').textContent = twoRows ? 'Single row' : '2 rows';
   scene.fit(viewMode, selected);
 }
-$('layout-button').addEventListener('click', () => { twoRows = !twoRows; syncLayout(); });
+$('layout-button').addEventListener('click', () => { layoutChosenByUser = true; twoRows = !twoRows; syncLayout(); });
+compactLayout.addEventListener('change', event => {
+  if (layoutChosenByUser) return;
+  twoRows = event.matches;
+  syncLayout();
+});
 $('fullscreen').addEventListener('click', async () => {
   try {
     if (document.fullscreenElement) await document.exitFullscreen();
@@ -322,7 +349,7 @@ function updateMetrics() {
 }
 $('export').addEventListener('click', () => {
   const snapshot = {
-    version: '2.0.0', generatedAt: new Date().toISOString(), exercise: sim.exercise, simulationSeconds: sim.time,
+    version: '2.0.1', generatedAt: new Date().toISOString(), exercise: sim.exercise, simulationSeconds: sim.time,
     parameters: { ...sim.params }, repeat, trialDuration,
     model: 'Educational translational contact approximation. No integral term. Not a PhysX benchmark.',
     units: { error: 'm', rms: 'm', peak: 'm', speed: 'm/s', force: 'N', peakHeight: 'm' },

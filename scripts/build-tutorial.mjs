@@ -114,9 +114,9 @@ if (codeCount !== expectedCodeBlocks) throw new Error('Code block rendering mism
 
 const shortTitles = [
   'Build the teaching scene', 'Tracking and force paths', 'The GorillaLocomotion source',
-  'C# source map', 'Three grab controllers', 'Feedforward and filtering',
+  'C# source map', 'Four grab controllers', 'Feedforward and filtering',
   'Joint frames and rotation', 'FireBlast’s settings', 'Timing, gravity, release',
-  'Experiments and tuning', 'Troubleshooting', 'Quest, WebXR, acceptance', 'Credits and foundations'
+  'Experiments and tuning', 'Troubleshooting', 'Quest, WebXR, acceptance', 'Architecture and replay', 'Credits and foundations'
 ];
 
 function tableOfContents() {
@@ -156,7 +156,7 @@ const html = `<!doctype html>
       <aside class="experiment-card" aria-labelledby="experiment-title">
         <p class="eyebrow">ONE OBJECT. SAME GRIP.</p>
         <h2 id="experiment-title">Feel the controller change.</h2>
-        <ol><li><span>01</span><div><b>Build the scene</b><p>Generate a small VR playground from the included C# kit.</p></div></li><li><span>02</span><div><b>Keep holding the cube</b><p>Switch CJ, relative PD, and backward PD without dropping it.</p></div></li><li><span>03</span><div><b>Test it against a wall</b><p>Compare tracking, reaction, and recovery in your headset.</p></div></li></ol>
+        <ol><li><span>01</span><div><b>Build the scene</b><p>Generate a small VR playground from the included C# kit.</p></div></li><li><span>02</span><div><b>Keep holding the cube</b><p>Switch CJ, PD, backward PD and velocity control without dropping it.</p></div></li><li><span>03</span><div><b>Test it against a wall</b><p>Compare tracking, reaction, and recovery in your headset.</p></div></li></ol>
       </aside>
     </section>
 
@@ -170,7 +170,7 @@ ${article}
       </main>
     </div>
 
-    <footer class="footer"><div><b>PHYSICS GYM / TRONT</b><p>Trent Sterling + ChatGPT · Ducky / Duck (SCUG) · FireBlast</p><p>Primary technical inspiration: <a href="https://digitalopus.ca/site/pd-controllers/">Digital Opus</a>. Locomotion source: <a href="https://github.com/Another-Axiom/GorillaLocomotion">Another Axiom</a>.</p></div><nav aria-label="Footer navigation"><a href="../downloads/TrontPhysicsGym-Unity.zip" download>Unity starter kit</a><a href="https://github.com/TrentSterling/pid">Source + licenses</a><a href="#tutorial-title">Back to top ↑</a></nav></footer>
+    <footer class="footer"><div><b>PHYSICS GYM / TRONT</b><p>Trent Sterling + ChatGPT · Ducky / Duck (SCUG) · FireBlast · CometDev</p><p>Primary technical inspiration: <a href="https://digitalopus.ca/site/pd-controllers/">Digital Opus</a>. Locomotion source: <a href="https://github.com/Another-Axiom/GorillaLocomotion">Another Axiom</a>.</p></div><nav aria-label="Footer navigation"><a href="../downloads/TrontPhysicsGym-Unity.zip" download>Unity starter kit</a><a href="https://github.com/TrentSterling/pid">Source + licenses</a><a href="#tutorial-title">Back to top ↑</a></nav></footer>
   </div>
   <p class="sr-only" id="copy-status" role="status" aria-live="polite"></p>
   <script>

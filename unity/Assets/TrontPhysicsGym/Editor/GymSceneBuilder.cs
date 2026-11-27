@@ -214,6 +214,7 @@ namespace Tront.PhysicsGym.Editor
             }
             AddButton(map, "CycleController", "<OculusTouchController>{RightHand}/primaryButton", "<Keyboard>/c");
             AddButton(map, "ToggleFeedForward", "<OculusTouchController>{LeftHand}/primaryButton", "<Keyboard>/f");
+            AddButton(map, "CycleLocomotion", "<OculusTouchController>{RightHand}/secondaryButton", "<Keyboard>/n");
             AddButton(map, "Reset", "<OculusTouchController>{LeftHand}/secondaryButton", "<Keyboard>/r");
             InputAction walk = map.AddAction("Walk", InputActionType.Value, expectedControlLayout: "Vector2");
             walk.AddCompositeBinding("2DVector").With("Up", "<Keyboard>/w").With("Down", "<Keyboard>/s")

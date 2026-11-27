@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { GrabLab, MODES, CANNON } from '../physics.js';
+import { GrabLab, MODES, LOCOMOTION_MODES, SCENARIOS, CANNON } from '../physics.js';
 
 const V = (x = 0, y = 0, z = 0) => new CANNON.Vec3(x, y, z);
 const length = v => Math.hypot(v.x, v.y, v.z);
@@ -22,7 +22,7 @@ function isolated(mode = 'backward', params = {}) {
 }
 
 test('bidirectional drives conserve linear momentum in an isolated pair; one-way does not', () => {
-  for (const mode of ['relative', 'backward', 'joint', 'oneway']) {
+  for (const mode of ['relative', 'backward', 'joint', 'velocity', 'oneway']) {
     const { lab, item } = isolated(mode);
     lab.setInput({ hands: [{ position: V(-0.12, 1.2, -0.45), grip: true }] });
     lab.step();
@@ -45,7 +45,7 @@ test('switching controllers while held preserves object, anchor, transforms and 
   lab.step();
   const state = [...item.body.position.toArray(), ...item.body.quaternion.toArray(), ...item.body.velocity.toArray(), ...lab.playerBody.position.toArray()];
   const anchor = lab.hands[0].grab.localAnchor.toArray();
-  for (const mode of ['joint', 'oneway', 'relative', 'backward', 'joint']) {
+  for (const mode of ['joint', 'oneway', 'relative', 'backward', 'velocity', 'joint']) {
     lab.setMode(mode);
     assert.equal(lab.hands[0].heldId, item.id);
     assert.deepEqual(lab.hands[0].grab.localAnchor.toArray(), anchor);
@@ -193,7 +193,7 @@ test('manual movement and room-scale head motion stop at static walls', () => {
   wallLab.dispose();
 });
 
-test('all four real-physics workouts grab, make contact, remain finite, and reset for a second cycle', () => {
+test('all five grab controllers complete contact workouts and reset for a second cycle', () => {
   for (const mode of MODES) {
     const lab = new GrabLab({ mode: mode.id });
     let heldFrames = 0, contactFrames = 0, minimumWallZ = Infinity, maximumSpeed = 0;
@@ -213,6 +213,181 @@ test('all four real-physics workouts grab, make contact, remain finite, and rese
     assert.equal(lab.cycle, 1);
     assert.ok(lab.time > 1 && lab.time < 3);
     assert.ok(lab.rigPosition.y > -0.1);
+    lab.dispose();
+  }
+});
+
+test('locomotion selection preserves the held prop and is independent of grab-controller choice', () => {
+  const { lab, item } = isolated('joint');
+  const anchor = lab.hands[0].grab.localAnchor.toArray();
+  const constraint = lab.hands[0].grab.constraint;
+  const initial = [...item.body.position.toArray(), ...item.body.velocity.toArray()];
+  for (const mode of LOCOMOTION_MODES) {
+    lab.setLocomotion(mode.id);
+    assert.equal(lab.mode, 'joint');
+    assert.equal(lab.hands[0].heldId, item.id);
+    assert.equal(lab.hands[0].grab.constraint, constraint);
+    assert.deepEqual(lab.hands[0].grab.localAnchor.toArray(), anchor);
+    assert.deepEqual([...item.body.position.toArray(), ...item.body.velocity.toArray()], initial);
+    assert.equal(lab.world.constraints.length, 1);
+  }
+  lab.dispose();
+});
+
+test('cast contact, force contact, and contact off have distinct bounded effects', () => {
+  const results = {};
+  for (const mode of LOCOMOTION_MODES) {
+    const lab = new GrabLab({ room: false, scripted: false, gravity: 0, locomotion: mode.id, maxContactForce: 300 });
+    lab.playerBody.linearDamping = 0;
+    lab._box('floor', 'Floor', V(0, -0.1, 0), V(10, 0.2, 10));
+    lab.input.hands[0].position.set(-0.3, -0.1, 0.15);
+    lab.hands[0].previousLocal.copy(lab.input.hands[0].position);
+    lab.hands[0].physical.set(-0.3, 0.085, 1.55);
+    lab.step();
+    results[mode.id] = { y: lab.rigPosition.y, ...lab.metrics };
+    if (mode.id === 'force') {
+      assert.ok(lab.metrics.contactForceN > 0);
+      assert.ok(lab.metrics.contactForceN <= 300 + 1e-8);
+      near(lab.metrics.contactCorrectionM, 0);
+      assert.ok(lab.playerBody.velocity.y <= 300 / lab.playerBody.mass / 90 + 1e-5);
+    }
+    lab.dispose();
+  }
+  assert.ok(results.cast.y > 0.15);
+  assert.ok(results.force.y > 0 && results.force.y < 0.01);
+  assert.ok(Math.abs(results.off.y) < 1e-5);
+  assert.equal(results.off.contacts, 0);
+});
+
+test('velocity servo caps paired impulse in newtons times timestep across 72/90/120 Hz', () => {
+  for (const hz of [72, 90, 120]) {
+    const { lab, item } = isolated('velocity', { maxForce: 10, maxTorque: 0 });
+    lab.setLocomotion('off');
+    lab.setInput({ hands: [{ position: V(0.2, 1.2, -0.45), grip: true }] });
+    lab.step(1 / hz);
+    const impulse = length(item.body.velocity) * item.body.mass;
+    assert.ok(impulse <= 10 / hz + 1e-7, `${hz} Hz exceeded the force-time bound`);
+    assert.ok(impulse > 9.9 / hz);
+    const momentum = lab.playerBody.velocity.scale(lab.playerBody.mass).vadd(item.body.velocity.scale(item.body.mass));
+    near(length(momentum), 0, 1e-7);
+    assert.ok(lab.metrics.forceN <= 10 + 1e-7);
+    lab.dispose();
+  }
+});
+
+test('velocity servo does not quietly depend on the disabled spring or feedforward gains', () => {
+  const a = isolated('velocity', { frequency: 1, damping: 0.1, angularFrequency: 1, feedforward: 0 });
+  const b = isolated('velocity', { frequency: 18, damping: 3, angularFrequency: 12, feedforward: 1.5 });
+  const pose = { hands: [{ position: V(-0.1, 1.3, -0.45), quaternion: new CANNON.Quaternion().setFromEuler(0, 0, 0.4), grip: true }] };
+  for (const { lab } of [a, b]) {
+    lab.setInput(pose);
+    for (let i = 0; i < 15; i++) lab.step();
+  }
+  assert.deepEqual(a.item.body.position.toArray(), b.item.body.position.toArray());
+  assert.deepEqual(a.item.body.quaternion.toArray(), b.item.body.quaternion.toArray());
+  assert.deepEqual(a.lab.playerBody.velocity.toArray(), b.lab.playerBody.velocity.toArray());
+  a.lab.dispose(); b.lab.dispose();
+});
+
+test('geometric penetration recovery alone cannot manufacture a release launch', () => {
+  const lab = floorPush(false);
+  near(lab.playerBody.velocity.y, 0, 1e-7);
+  lab.setInput({ hands: [{ position: V(-0.3, 0.3, 0.15), grip: false }] });
+  lab.step();
+  near(lab.metrics.launchSpeed, 0);
+  near(lab.playerBody.velocity.y, 0, 1e-7);
+  assert.equal(lab.exportTrial().summary.launches, 0);
+  lab.dispose();
+});
+
+test('enabling cast contact with a query hand inside the floor recovers without launch energy', () => {
+  const lab = new GrabLab({ room: false, scripted: false, gravity: 0, locomotion: 'off' });
+  lab.playerBody.linearDamping = 0;
+  lab._box('floor', 'Floor', V(0, -0.1, 0), V(10, 0.2, 10));
+  lab.input.hands[0].position.set(-0.3, -0.1, 0.15);
+  lab.hands[0].previousLocal.copy(lab.input.hands[0].position);
+  lab.step();
+  assert.ok(lab.hands[0].physical.y < 0);
+  lab.setLocomotion('cast');
+  lab.step();
+  assert.ok(lab.hands[0].physical.y >= 0.085);
+  assert.ok(lab.metrics.contactCorrectionM > 0.15);
+  lab.setInput({ hands: [{ position: V(-0.3, 0.3, 0.15), grip: false }] });
+  lab.step();
+  near(lab.metrics.launchSpeed, 0);
+  near(lab.playerBody.velocity.y, 0, 1e-7);
+  lab.dispose();
+});
+
+test('deliberate contact strokes can launch, while head-tracking recovery clears the launch history', () => {
+  for (const recover of [false, true]) {
+    const lab = floorPush(false);
+    for (let i = 1; i <= 4; i++) {
+      lab.setInput({ hands: [{ position: V(-0.3, -0.1 - 0.04 * i, 0.15), grip: false }] });
+      lab.step();
+    }
+    if (recover) lab.setInput({ head: { position: V(0, 2.7, 0) } });
+    lab.setInput({ hands: [{ position: V(-0.3, 0.3, 0.15), grip: false }] });
+    lab.step();
+    if (recover) {
+      near(lab.metrics.launchSpeed, 0);
+      assert.equal(lab.exportTrial().summary.launches, 0);
+    } else {
+      assert.ok(lab.metrics.launchSpeed > 0.8);
+      assert.equal(lab.exportTrial().summary.launches, 1);
+    }
+    lab.dispose();
+  }
+});
+
+test('unheld airborne tracking produces no root movement in every contact architecture', () => {
+  for (const locomotion of LOCOMOTION_MODES) {
+    const lab = new GrabLab({ scenario: 'airborne', locomotion: locomotion.id, repeatTrial: false });
+    for (let i = 0; i < 720; i++) lab.step();
+    near(lab.metrics.playerDriftM, 0, 1e-8);
+    near(lab.metrics.speed, 0, 1e-8);
+    assert.equal(lab.metrics.heldCount, 0);
+    assert.equal(lab.metrics.contacts, 0);
+    assert.equal(lab.exportTrial().summary.launches, 0);
+    lab.dispose();
+  }
+});
+
+test('shove is a single scenario event during recorded/manual input and repeat can be disabled', () => {
+  const lab = new GrabLab({ scripted: false, gravity: 0, locomotion: 'off' });
+  lab.setScenario('shove');
+  lab.repeatTrial = false;
+  lab.playerBody.linearDamping = 0;
+  for (let i = 0; i < 810; i++) lab.step();
+  assert.equal(lab.scripted, false);
+  assert.ok(lab.time > 8.9);
+  assert.equal(lab.cycle, 0);
+  near(lab.playerBody.velocity.x, 90 / lab.playerBody.mass, 1e-6);
+  assert.equal(lab.exportTrial().summary.externalImpulseNs, 90);
+  const data = JSON.parse(JSON.stringify(lab.exportTrial()));
+  assert.equal(data.scenario, 'shove');
+  assert.equal(data.locomotion, 'off');
+  assert.equal(data.parameters.bodyMass, 75);
+  lab.dispose();
+});
+
+test('all scenario setups run finite and preserve requested gravity outside the airborne isolation case', () => {
+  for (const scenario of SCENARIOS) for (const locomotion of ['cast', 'force', 'off']) {
+    const lab = new GrabLab({ scenario: scenario.id, locomotion, repeatTrial: false });
+    let held = 0, contacts = 0;
+    for (let i = 0; i < scenario.duration * 72; i++) {
+      lab.step(1 / 72);
+      held += lab.metrics.heldCount;
+      contacts += lab.metrics.contacts;
+      finiteBody(lab.playerBody);
+    }
+    if (['workout', 'wall'].includes(scenario.id)) assert.ok(held > 300, `${scenario.id}/${locomotion}: missed pickup`);
+    if (scenario.id === 'floor' && locomotion !== 'off') assert.ok(contacts > 5, `${scenario.id}/${locomotion}: missed floor`);
+    if (scenario.id === 'airborne') {
+      near(lab.world.gravity.y, 0);
+      lab.setScenario('workout');
+      near(lab.world.gravity.y, -lab.params.gravity);
+    }
     lab.dispose();
   }
 });

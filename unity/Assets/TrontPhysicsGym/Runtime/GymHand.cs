@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace Tront.PhysicsGym
 {
-    [DefaultExecutionOrder(-100)]
+    [DefaultExecutionOrder(-40)]
     public sealed class GymHand : MonoBehaviour
     {
         public GymRigInput input;
@@ -21,13 +21,14 @@ namespace Tront.PhysicsGym
         public bool Valid => leftHand ? input.LeftValid : input.RightValid;
         public Vector3 LocalVelocity => leftHand ? input.LeftLocalVelocity : input.RightLocalVelocity;
         public Vector3 LocalAngularVelocity => leftHand ? input.LeftLocalAngularVelocity : input.RightLocalAngularVelocity;
+        public Vector3 LocalAcceleration => leftHand ? input.LeftLocalAcceleration : input.RightLocalAcceleration;
         public Vector3 TargetPosition => player.position + player.rotation * player.transform.InverseTransformPoint(target.position);
         public Quaternion TargetRotation => player.rotation * Quaternion.Inverse(player.transform.rotation) * target.rotation;
 
         readonly Collider[] overlaps = new Collider[24];
         Collider[] heldColliders, playerColliders;
         bool[,] previouslyIgnored;
-        Vector3 objectAnchor, previousLocalVelocity, filteredAcceleration;
+        Vector3 objectAnchor;
         Quaternion gripRotationOffset, initialRelativeRotation;
         ConfigurableJoint joint;
         GrabController activeMode;
@@ -51,13 +52,12 @@ namespace Tront.PhysicsGym
             float dt = Time.fixedDeltaTime;
             Vector3 trackedVelocity = input.trackingSpace.TransformDirection(LocalVelocity);
             Vector3 targetVelocity = player.GetPointVelocity(targetPosition) + trackedVelocity;
-            Vector3 localAcceleration = derivativeReady ? (LocalVelocity - previousLocalVelocity) / dt : Vector3.zero;
-            previousLocalVelocity = LocalVelocity;
+            // Estimate acceleration at the input sample cadence. Differencing an
+            // Update velocity once per FixedUpdate produces cadence-dependent spikes.
+            Vector3 localAcceleration = derivativeReady ? LocalAcceleration : Vector3.zero;
             derivativeReady = true;
-            filteredAcceleration = Vector3.Lerp(filteredAcceleration, Vector3.ClampMagnitude(localAcceleration, 35f),
-                1f - Mathf.Exp(-2f * Mathf.PI * 12f * dt));
-            Vector3 feedForward = lab.accelerationFeedForward
-                ? input.trackingSpace.TransformDirection(filteredAcceleration) : Vector3.zero;
+            Vector3 feedForward = lab.SupportsFeedForward && lab.accelerationFeedForward
+                ? input.trackingSpace.TransformDirection(localAcceleration) : Vector3.zero;
 
             if (activeMode == GrabController.ConfigurableJoint)
             {
@@ -76,8 +76,12 @@ namespace Tront.PhysicsGym
 
             GymControllerMath.Gains(lab.frequencyHz, lab.dampingRatio, out float kp, out float kd);
             bool backward = activeMode == GrabController.BackwardPD;
-            Vector3 acceleration = GymControllerMath.Acceleration(targetPosition - anchorWorld,
-                targetVelocity - body.GetPointVelocity(anchorWorld), kp, kd, dt, backward, feedForward);
+            Vector3 velocityError = targetVelocity - body.GetPointVelocity(anchorWorld);
+            Vector3 acceleration = activeMode == GrabController.VelocityServo
+                ? GymControllerMath.VelocityServoAcceleration(targetPosition - anchorWorld,
+                    velocityError, lab.maximumChaseSpeed, dt)
+                : GymControllerMath.Acceleration(targetPosition - anchorWorld,
+                    velocityError, kp, kd, dt, backward, feedForward);
             float mass = GymControllerMath.EffectiveMass(body, player, lab.reactionForces);
             Vector3 force = Vector3.ClampMagnitude(acceleration * mass, lab.maximumForce);
             if (!GymControllerMath.IsFinite(force)) { Release(); return; }
@@ -92,8 +96,11 @@ namespace Tront.PhysicsGym
                 Quaternion desired = TargetRotation * gripRotationOffset;
                 Vector3 angularError = GymControllerMath.RotationVector(desired, body.rotation);
                 Vector3 angularVelocity = player.angularVelocity + input.trackingSpace.TransformDirection(LocalAngularVelocity);
-                Vector3 angularAcceleration = GymControllerMath.Acceleration(angularError,
-                    angularVelocity - body.angularVelocity, kp, kd, dt, backward, Vector3.zero);
+                Vector3 angularAcceleration = activeMode == GrabController.VelocityServo
+                    ? GymControllerMath.VelocityServoAcceleration(angularError,
+                        angularVelocity - body.angularVelocity, 20f, dt)
+                    : GymControllerMath.Acceleration(angularError,
+                        angularVelocity - body.angularVelocity, kp, kd, dt, backward, Vector3.zero);
                 Vector3 torque = Vector3.ClampMagnitude(GymControllerMath.InertiaTorque(body.rotation,
                     body.inertiaTensorRotation, body.inertiaTensor, angularAcceleration), lab.maximumTorque);
                 body.AddTorque(torque, ForceMode.Force);
@@ -138,7 +145,7 @@ namespace Tront.PhysicsGym
         {
             RemoveJoint();
             activeMode = lab.mode;
-            derivativeReady = false; filteredAcceleration = Vector3.zero;
+            derivativeReady = false;
             if (Held == null || activeMode != GrabController.ConfigurableJoint) return;
             Rigidbody body = Held.Body;
             joint = body.gameObject.AddComponent<ConfigurableJoint>();
@@ -204,7 +211,7 @@ namespace Tront.PhysicsGym
             // Leave Rigidbody velocities intact: throwing uses the motion already solved.
         }
 
-        public void ResetControllerHistory() { derivativeReady = false; filteredAcceleration = Vector3.zero; }
+        public void ResetControllerHistory() { derivativeReady = false; }
         void OnDisable() { Release(); }
         void LateUpdate()
         {

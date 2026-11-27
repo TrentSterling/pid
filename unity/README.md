@@ -2,7 +2,7 @@
 
 **[Complete tutorial](https://tront.xyz/pid/tutorial/)** · **[WebXR companion](https://tront.xyz/pid/vr/)** · **[Repository](https://github.com/TrentSterling/pid)**
 
-Hold the same Rigidbody and switch **ConfigurableJoint → Relative PD → Backward PD** without letting go. The teaching scene combines arm contact locomotion with real physics grabbing, fixed climbing grips, force limits, and a separate acceleration-feedforward toggle.
+Hold the same Rigidbody and switch **ConfigurableJoint → Relative PD → Backward PD → Velocity Servo** without letting go. Choose **Off / Force Servo / Cast Correction** locomotion independently. The teaching scene includes physical grabbing, fixed climbing grips, force limits, and a separate acceleration-feedforward toggle. The capped velocity servo uses forces; it does not overwrite the held body's velocity.
 
 ## Quick start
 
@@ -24,10 +24,17 @@ There is no dependency on XR Interaction Toolkit or a paid SDK. The kit owns its
 | Move virtual hand | I/K forward/back, J/L sideways, U/O up/down | Tracked pose |
 | Restore virtual hands | H | — |
 | Switch controller, keep holding | C | A |
+| Switch locomotion architecture | N | B |
 | Toggle acceleration feedforward | F | X |
 | Reset scene | R | Y |
 
-The desktop overlay also exposes custom reaction forces, the locomotion motor, and FireBlast's reported angular/mass preset. That preset is incomplete because his linear drive settings and full rig were not supplied.
+The desktop overlay also exposes custom reaction forces, cast-mode velocity preservation, the locomotion master switch (M), and FireBlast's reported angular/mass preset. Regenerate the teaching scene after upgrading to get the new N / Touch B input bindings; older input assets remain loadable and the GUI still changes modes. That preset is incomplete because his linear drive settings and full rig were not supplied.
+
+## What the comparison means
+
+The latest discussion separates hand tracking, world-contact locomotion, and grabbing. FireBlast described velocity-tracked hands, sphere-cast locomotion, and a custom grabbing controller; he did not provide that code. This kit implements our own controlled comparisons. Its empty-hand markers are visual targets, not extra proxy-hand rigidbodies, and the preserved Another Axiom source is a reference rather than the active motor.
+
+Cast Correction averages planted-hand displacements, sweeps the player capsule and a head sphere before applying each correction, and bounds overlap recovery. A recent tracked hand stroke supplies a capped push-off once on release. Recovery motion never feeds the launch estimator. Keep locomotion Off to isolate the grabbing experiment.
 
 ## What is included
 
@@ -39,4 +46,4 @@ Read **`IMPLEMENTATION.md`** in the ZIP, or [implementation-notes.md](implementa
 
 The C# was reviewed against Unity's documented APIs; math checks are included for execution inside Unity. **Unity compilation, Editor Play Mode, and a physical headset session were not available in the authoring environment.** Run the supplied acceptance checks before using this as a game foundation. The browser companion exercises a separate Cannon-es implementation and does not establish PhysX correctness or headset performance.
 
-Created by **Trent Sterling (Tront) & ChatGPT**, from discussions with **Ducky / Duck (SCUG)** and **FireBlast**. **Digital Opus is the primary control inspiration.** Original locomotion reference: **Another Axiom**. Additional foundations: **David Wu**, and **Jie Tan, Karen Liu, and Greg Turk**.
+Created by **Trent Sterling (Tront) & ChatGPT**, from discussions with **Ducky / Duck (SCUG)** and **FireBlast**, with solver/architecture feedback from **CometDev**. **Digital Opus is the primary control inspiration.** Original locomotion reference: **Another Axiom**. Additional foundations: **David Wu**, and **Jie Tan, Karen Liu, and Greg Turk**.

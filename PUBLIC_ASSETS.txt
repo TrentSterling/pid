@@ -36,3 +36,6 @@ upstream/GorillaLocomotion/README.md
 upstream/GorillaLocomotion/Surface.cs
 upstream/PROVENANCE.json
 downloads/TrontPhysicsGym-Unity.zip
+ARCHITECTURE.md
+vr/experiments.js
+vr/experiment-worker.js

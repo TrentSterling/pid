@@ -3,7 +3,8 @@ using UnityEngine;
 
 namespace Tront.PhysicsGym
 {
-    public enum GrabController { ConfigurableJoint, RelativePD, BackwardPD }
+    public enum GrabController { ConfigurableJoint, RelativePD, BackwardPD, VelocityServo }
+    public enum LocomotionController { Off, ForceServo, CastCorrection }
 
     /// <summary>Acceleration gains use Hz and a dimensionless damping ratio.</summary>
     public static class GymControllerMath
@@ -25,6 +26,26 @@ namespace Tront.PhysicsGym
             if (!backward) return kp * positionError + kd * velocityError + feedForward;
             float g = 1f / (1f + kd * dt + kp * dt * dt);
             return g * (kp * positionError + (kd + kp * dt) * velocityError) + feedForward;
+        }
+
+        // A velocity target followed through a finite force, never a direct velocity
+        // overwrite. A one-step position target requests a velocity, then the
+        // velocity error requests a one-step acceleration before the force cap.
+        public static Vector3 VelocityServoAcceleration(Vector3 positionError, Vector3 velocityError,
+            float maximumChaseSpeed, float dt)
+        {
+            dt = Mathf.Max(0.0001f, dt);
+            Vector3 chase = Vector3.ClampMagnitude(positionError / dt,
+                Mathf.Max(0f, maximumChaseSpeed));
+            return (chase + velocityError) / dt;
+        }
+
+        // Contacts may remove motion into a support, but must not erase tangential
+        // momentum. The support velocity is included exactly once in this projection.
+        public static Vector3 RemoveInwardVelocity(Vector3 worldVelocity, Vector3 supportVelocity, Vector3 normal)
+        {
+            float inward = Vector3.Dot(worldVelocity - supportVelocity, normal);
+            return inward < 0f ? worldVelocity - normal * inward : worldVelocity;
         }
 
         public static float EffectiveMass(Rigidbody driven, Rigidbody receiver, bool reaction)

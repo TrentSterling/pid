@@ -22,6 +22,27 @@ namespace Tront.PhysicsGym.Editor
             Require((GymControllerMath.Acceleration(Vector3.zero, Vector3.zero, kp, kd, dt, true, ff) - ff).sqrMagnitude < 1e-8f,
                 "Acceleration feedforward should equal target acceleration at zero tracking error.");
 
+            Vector3 servo = GymControllerMath.VelocityServoAcceleration(Vector3.right * 10f,
+                Vector3.zero, 8f, dt);
+            Near(servo.x * dt, 8f, 0.0001f, "Velocity servo bounds its positional chase target");
+            Require(GymControllerMath.VelocityServoAcceleration(Vector3.zero, Vector3.zero, 8f, dt)
+                == Vector3.zero, "A matched moving target needs no servo force.");
+            Vector3 smallError = new Vector3(0.01f, -0.02f, 0.03f);
+            Vector3 oneStep = GymControllerMath.VelocityServoAcceleration(smallError, Vector3.zero, 8f, dt);
+            Require((oneStep * dt * dt - smallError).magnitude < 1e-6f,
+                "Uncapped free-particle velocity servo closes a sampled stationary error in one step.");
+            Vector3 supportVelocity = new Vector3(2f, 1f, -3f);
+            Vector3 incoming = new Vector3(6f, -4f, 2f);
+            Vector3 projected = GymControllerMath.RemoveInwardVelocity(incoming, supportVelocity, Vector3.up);
+            Require((projected - new Vector3(6f, 1f, 2f)).sqrMagnitude < 1e-8f,
+                "Contact projection removes inward relative velocity without erasing tangential momentum.");
+            Vector3 boost = new Vector3(20f, -7f, 9f);
+            Require((GymControllerMath.RemoveInwardVelocity(incoming + boost, supportVelocity + boost, Vector3.up)
+                - projected - boost).sqrMagnitude < 1e-8f, "Contact velocity projection is Galilean invariant.");
+            Vector3 outgoing = new Vector3(6f, 4f, 2f);
+            Require(GymControllerMath.RemoveInwardVelocity(outgoing, supportVelocity, Vector3.up) == outgoing,
+                "An outward external impulse survives contact velocity projection.");
+
             // Unconstrained scalar model: high gains should converge under this same
             // semi-implicit integration, not claim universal PhysX/contact stability.
             foreach (float hz in new[] { 2f, 6f, 40f, 120f })
@@ -68,7 +89,7 @@ namespace Tront.PhysicsGym.Editor
                 Near(GymControllerMath.EffectiveMass(ra, rb, false), 0f, 0.0001f, "One-way fixed grip cannot move player");
             }
             finally { UnityEngine.Object.DestroyImmediate(a); UnityEngine.Object.DestroyImmediate(b); }
-            Debug.Log("Physics Gym math checks passed: gains, derivative sign, feedforward, backward integration, quaternion/inertia frames, joint offset, reduced mass. Next: Unity Play Mode and headset acceptance checklist.");
+            Debug.Log("Physics Gym math checks passed: gains, derivative sign, feedforward, backward integration, velocity servo, contact momentum, quaternion/inertia frames, joint offset, reduced mass. Next: Unity Play Mode and headset acceptance checklist.");
         }
 
         static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }

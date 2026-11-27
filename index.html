@@ -8,7 +8,7 @@
   <title>Physics Gym · Tront Labs</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='9' fill='%23101722'/%3E%3Cpath d='M8 28V18m8 10V9m8 19V14m8 14V5' stroke='%2367d8c5' stroke-width='4'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="./styles.css?v=2.0.2">
-  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+  <script type="importmap">{"imports":{"three":"./vr/vendor/three.module-0.170.0.js","three/addons/controls/OrbitControls.js":"./vr/vendor/OrbitControls-0.170.0.js"}}</script>
 </head>
 <body>
 <div class="app-shell">
@@ -71,8 +71,8 @@
   </main>
 
   <footer id="about" class="about-panel">
-    <div><div class="eyebrow">BUILT TO EXPERIMENT</div><h2>Learn the feel. Then test it in your engine.</h2><p>These are eight PD and spring variants running the same body-relative hand motion. The targets move with each player's body, so their world-space paths diverge during locomotion. This is an educational translational contact model, not a PhysX or Rapier benchmark. The PID URL is easy to remember; these modes have no integral term.</p></div>
-    <div class="credits"><h3>Primary technical inspiration: Digital Opus</h3><p><a href="https://digitalopus.ca/site/pd-controllers/">Forces & Torques I</a><span>·</span><a href="https://digitalopus.ca/site/controlling-objects-with-forces-and-torques-part-2/">Part II</a><span>·</span><a href="https://github.com/Phong13/UsefulUtils">UsefulUtils</a></p><p>Created by <strong>Trent Sterling (Tront)</strong> & <strong>ChatGPT</strong>. Developed from discussions with <strong>Ducky / Duck (SCUG)</strong> and <strong>FireBlast</strong>.</p><p class="field-hint">Additional foundations: David Wu's backward PD approach; <em>Stable Proportional-Derivative Controllers</em> by Jie Tan, Karen Liu and Greg Turk. The explicit SPD V2 example is not the paper's full implicit solver.</p><small class="version">PHYSICS GYM · 2.0</small></div>
+    <div><div class="eyebrow">BUILT TO EXPERIMENT</div><h2>Learn the feel. Then test it in your engine.</h2><p>These are eight PD and spring variants running the same body-relative hand motion. The targets move with each player's body, so their world-space paths diverge during locomotion. This is an educational translational contact model, not a PhysX or Rapier benchmark. The PID URL is easy to remember; these modes have no integral term.</p><p><a href="./vr/">Continue to the Grab Lab</a> to compare five grab controllers, switch cast / force / no hand locomotion independently, and replay the same recorded input in a background benchmark. <a href="./tutorial/#13-architecture-and-replay">Read the architecture and replay guide.</a></p></div>
+    <div class="credits"><h3>Primary technical inspiration: Digital Opus</h3><p><a href="https://digitalopus.ca/site/pd-controllers/">Forces & Torques I</a><span>·</span><a href="https://digitalopus.ca/site/controlling-objects-with-forces-and-torques-part-2/">Part II</a><span>·</span><a href="https://github.com/Phong13/UsefulUtils">UsefulUtils</a></p><p>Created by <strong>Trent Sterling (Tront)</strong> & <strong>ChatGPT</strong>. Developed from discussions with <strong>Ducky / Duck (SCUG)</strong>, <strong>FireBlast</strong>, and <strong>CometDev</strong>.</p><p class="field-hint">Additional foundations: David Wu's backward PD approach; <em>Stable Proportional-Derivative Controllers</em> by Jie Tan, Karen Liu and Greg Turk. The explicit SPD V2 example is not the paper's full implicit solver.</p><small class="version">PHYSICS GYM · 3.1</small></div>
   </footer>
   <div id="toast" class="toast" role="status" hidden></div>
 </div>

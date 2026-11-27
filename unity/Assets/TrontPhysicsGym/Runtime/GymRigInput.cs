@@ -22,14 +22,17 @@ namespace Tront.PhysicsGym
         public bool CyclePressed { get; private set; }
         public bool FeedForwardPressed { get; private set; }
         public bool ResetPressed { get; private set; }
+        public bool LocomotionPressed { get; private set; }
         public Vector2 Walk { get; private set; }
         public Vector3 LeftLocalVelocity { get; private set; }
         public Vector3 RightLocalVelocity { get; private set; }
         public Vector3 LeftLocalAngularVelocity { get; private set; }
         public Vector3 RightLocalAngularVelocity { get; private set; }
+        public Vector3 LeftLocalAcceleration { get; private set; }
+        public Vector3 RightLocalAcceleration { get; private set; }
         public event System.Action OriginChanged;
 
-        InputAction hp, hr, ht, lp, lr, lt, lg, rp, rr, rt, rg, cycle, ff, reset, walk;
+        InputAction hp, hr, ht, lp, lr, lt, lg, rp, rr, rt, rg, cycle, ff, reset, walk, locomotion;
         Vector3 desktopLeft = new Vector3(-0.28f, 1.15f, 0.5f);
         Vector3 desktopRight = new Vector3(0.28f, 1.15f, 0.5f);
         Vector3 previousLeft, previousRight;
@@ -51,6 +54,9 @@ namespace Tront.PhysicsGym
             rt = actions.FindAction("RightTracked", true); rg = actions.FindAction("RightGrip", true);
             cycle = actions.FindAction("CycleController", true); ff = actions.FindAction("ToggleFeedForward", true);
             reset = actions.FindAction("Reset", true); walk = actions.FindAction("Walk", true);
+            // Optional for older generated assets. Regenerate the teaching scene to
+            // include N / right-secondary-button bindings without editing at runtime.
+            locomotion = actions.FindAction("CycleLocomotion", false);
         }
 
         void OnEnable()
@@ -70,7 +76,7 @@ namespace Tront.PhysicsGym
         void Update()
         {
             bool newXR = useXRWhenAvailable && XRSettings.isDeviceActive;
-            if (newXR != IsXR) { ResetDerivatives(); originRequested = false; }
+            if (newXR != IsXR) { ResetDerivatives(); originRequested = false; OriginChanged?.Invoke(); }
             IsXR = newXR;
             if (IsXR && !originRequested)
             {
@@ -92,6 +98,7 @@ namespace Tront.PhysicsGym
             CyclePressed = cycle.WasPressedThisFrame();
             FeedForwardPressed = ff.WasPressedThisFrame();
             ResetPressed = reset.WasPressedThisFrame();
+            LocomotionPressed = locomotion != null && locomotion.WasPressedThisFrame();
             if (IsXR)
             {
                 ReadXRPose();
@@ -165,15 +172,27 @@ namespace Tront.PhysicsGym
         void UpdateDerivatives()
         {
             float dt = Mathf.Max(0.001f, Time.unscaledDeltaTime);
-            bool discontinuity = !poseHistoryReady || !LeftValid || !RightValid
-                || (leftTarget.localPosition - previousLeft).sqrMagnitude > 0.25f
-                || (rightTarget.localPosition - previousRight).sqrMagnitude > 0.25f;
-            if (discontinuity) { LeftLocalVelocity = RightLocalVelocity = Vector3.zero; LeftLocalAngularVelocity = RightLocalAngularVelocity = Vector3.zero; }
+            bool jumped = poseHistoryReady && ((leftTarget.localPosition - previousLeft).sqrMagnitude > 0.25f
+                || (rightTarget.localPosition - previousRight).sqrMagnitude > 0.25f);
+            bool discontinuity = !poseHistoryReady || !LeftValid || !RightValid || jumped;
+            if (discontinuity)
+            {
+                LeftLocalVelocity = RightLocalVelocity = Vector3.zero;
+                LeftLocalAngularVelocity = RightLocalAngularVelocity = Vector3.zero;
+                LeftLocalAcceleration = RightLocalAcceleration = Vector3.zero;
+                if (jumped) OriginChanged?.Invoke();
+            }
             else
             {
                 float blend = 1f - Mathf.Exp(-2f * Mathf.PI * 20f * dt);
+                Vector3 oldLeft = LeftLocalVelocity, oldRight = RightLocalVelocity;
                 LeftLocalVelocity = Vector3.Lerp(LeftLocalVelocity, Vector3.ClampMagnitude((leftTarget.localPosition - previousLeft) / dt, 10f), blend);
                 RightLocalVelocity = Vector3.Lerp(RightLocalVelocity, Vector3.ClampMagnitude((rightTarget.localPosition - previousRight) / dt, 10f), blend);
+                float accelerationBlend = 1f - Mathf.Exp(-2f * Mathf.PI * 12f * dt);
+                LeftLocalAcceleration = Vector3.Lerp(LeftLocalAcceleration,
+                    Vector3.ClampMagnitude((LeftLocalVelocity - oldLeft) / dt, 35f), accelerationBlend);
+                RightLocalAcceleration = Vector3.Lerp(RightLocalAcceleration,
+                    Vector3.ClampMagnitude((RightLocalVelocity - oldRight) / dt, 35f), accelerationBlend);
                 LeftLocalAngularVelocity = Vector3.ClampMagnitude(GymControllerMath.RotationVector(leftTarget.localRotation, previousLeftRotation) / dt, 25f);
                 RightLocalAngularVelocity = Vector3.ClampMagnitude(GymControllerMath.RotationVector(rightTarget.localRotation, previousRightRotation) / dt, 25f);
             }
@@ -182,7 +201,13 @@ namespace Tront.PhysicsGym
             poseHistoryReady = LeftValid && RightValid;
         }
 
-        public void ResetDerivatives() { poseHistoryReady = false; LeftLocalVelocity = RightLocalVelocity = Vector3.zero; LeftLocalAngularVelocity = RightLocalAngularVelocity = Vector3.zero; }
+        public void ResetDerivatives()
+        {
+            poseHistoryReady = false;
+            LeftLocalVelocity = RightLocalVelocity = Vector3.zero;
+            LeftLocalAngularVelocity = RightLocalAngularVelocity = Vector3.zero;
+            LeftLocalAcceleration = RightLocalAcceleration = Vector3.zero;
+        }
         void OnTrackingOriginUpdated(XRInputSubsystem subsystem) { ResetDerivatives(); OriginChanged?.Invoke(); }
         public void ResetDesktopHands() { desktopLeft = new Vector3(-0.28f, 1.15f, 0.5f); desktopRight = new Vector3(0.28f, 1.15f, 0.5f); ResetDerivatives(); }
     }

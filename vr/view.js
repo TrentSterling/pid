@@ -94,23 +94,24 @@ export class LabView {
   buildXRPanel() {
     // Mount the panel on the viewer side of the press wall (front face z=.04).
     this.xrPanel=new THREE.Group(); this.xrPanel.position.set(0,2.15,.1); this.xrPanel.visible=false; this.scene.add(this.xrPanel);
-    const back=new THREE.Mesh(new THREE.BoxGeometry(1.5,.66,.025),new THREE.MeshBasicMaterial({color:0x102330}));this.xrPanel.add(back);
+    const back=new THREE.Mesh(new THREE.BoxGeometry(1.5,.96,.025),new THREE.MeshBasicMaterial({color:0x102330}));this.xrPanel.add(back);
     const titleCanvas=document.createElement('canvas');titleCanvas.width=768;titleCanvas.height=128;
     const ctx=titleCanvas.getContext('2d');ctx.fillStyle='#89ead6';ctx.font='bold 44px system-ui';ctx.fillText('GRAB LAB',26,56);ctx.fillStyle='#b9ccd9';ctx.font='23px system-ui';ctx.fillText('Grip the cube · trigger a button · keep holding',26,102);
-    const title=new THREE.Mesh(new THREE.PlaneGeometry(1.4,.23),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(titleCanvas),transparent:true}));title.position.set(0,.19,.02);this.xrPanel.add(title);
-    const labels=['One-way','Reaction','Backward','Point joint','Reset'];
-    const ids=['oneway','relative','backward','joint','reset'];
-    for(let i=0;i<5;i++) {
+    const title=new THREE.Mesh(new THREE.PlaneGeometry(1.4,.23),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(titleCanvas),transparent:true}));title.position.set(0,.31,.02);this.xrPanel.add(title);
+    const labels=['One-way','Reaction','Backward','Point joint','Velocity','Contact mode','Reset'];
+    const ids=['oneway','relative','backward','joint','velocity','contact','reset'];
+    for(let i=0;i<labels.length;i++) {
       const c=document.createElement('canvas');c.width=256;c.height=100;const cc=c.getContext('2d');
       cc.fillStyle='#d6ece7';cc.font='bold 30px system-ui';cc.textAlign='center';cc.fillText(labels[i],128,60);
       const mat=new THREE.MeshBasicMaterial({color:0x244839});
-      const button=new THREE.Mesh(new THREE.BoxGeometry(.265,.16,.025),mat);button.position.set((i-2)*.283,-.045,.04);button.userData.command=ids[i];
-      const label=new THREE.Mesh(new THREE.PlaneGeometry(.255,.1),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true}));label.position.z=.014;button.add(label);
+      const wide=i>=5;
+      const button=new THREE.Mesh(new THREE.BoxGeometry(wide?.56:.265,.16,.025),mat);button.position.set(wide?(i===5?-.3:.3):(i-2)*.283,wide?-.18:.025,.04);button.userData.command=ids[i];
+      const label=new THREE.Mesh(new THREE.PlaneGeometry(wide?.40:.255,.1),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true}));label.position.z=.014;button.add(label);
       this.xrPanel.add(button);this.xrButtons.push(button);
     }
     this.hudCanvas=document.createElement('canvas');this.hudCanvas.width=768;this.hudCanvas.height=80;this.hudTexture=new THREE.CanvasTexture(this.hudCanvas);
     this.hudTexture.colorSpace=THREE.SRGBColorSpace;
-    const hud=new THREE.Mesh(new THREE.PlaneGeometry(1.4,.14),new THREE.MeshBasicMaterial({map:this.hudTexture,transparent:true}));hud.position.set(0,-.235,.025);this.xrPanel.add(hud);
+    const hud=new THREE.Mesh(new THREE.PlaneGeometry(1.4,.14),new THREE.MeshBasicMaterial({map:this.hudTexture,transparent:true}));hud.position.set(0,-.365,.025);this.xrPanel.add(hud);
   }
 
   activateXRButton(controller) {
@@ -135,8 +136,9 @@ export class LabView {
   fit(close=false) {
     if(this.renderer?.xr.isPresenting) return;
     this.lastFitClose=close;
-    this.controls.target.set(0,.95,.55);
-    if(close) this.camera.position.set(2.2,2.25,3.65);
+    const p=this.lab.rigPosition;
+    this.controls.target.set(close?p.x:0,close?p.y+.95:1,close?p.z-.85:.55);
+    if(close) this.camera.position.set(p.x+2.2,p.y+2.25,p.z+2.25);
     else this.camera.position.set(4.6,3.15,6.3);
     this.controls.update();
   }
@@ -178,7 +180,7 @@ export class LabView {
     }
     if(xr&&time-this.lastHud>100) {
       this.lastHud=time;const c=this.hudCanvas.getContext('2d');c.clearRect(0,0,768,80);c.font='27px monospace';c.fillStyle='#b5d0db';c.textAlign='center';
-      c.fillText(`${lab.metrics.gapCm.toFixed(1)} cm gap    ${lab.metrics.forceN.toFixed(0)} N    ${lab.metrics.speed.toFixed(2)} m/s`,384,47);this.hudTexture.needsUpdate=true;
+      c.fillText(`${lab.locomotion.toUpperCase()} contact   ${lab.metrics.gapCm.toFixed(1)} cm   ${lab.metrics.forceN.toFixed(0)} N   ${lab.metrics.speed.toFixed(2)} m/s`,384,47);this.hudTexture.needsUpdate=true;
       for(const b of this.xrButtons) b.material.color.setHex(b.userData.command===lab.mode?0x397f6c:0x244238);
     }
     this.renderer.render(this.scene,this.camera);

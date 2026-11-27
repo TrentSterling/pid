@@ -1,5 +1,5 @@
-import { GrabLab, MODES, DEFAULTS, CANNON } from './physics.js?v=3.0.1';
-import { LabView } from './view.js?v=3.0.1';
+import { GrabLab, MODES, LOCOMOTION_MODES, SCENARIOS, DEFAULTS, CANNON } from './physics.js?v=3.1.0';
+import { LabView } from './view.js?v=3.1.0';
 
 const $=id=>document.getElementById(id);
 const text=(id,value)=>{const e=$(id);if(e.textContent!==String(value))e.textContent=String(value);};
@@ -8,6 +8,7 @@ let paused=false,slow=false,selectedHand=0,closeView=true;
 let lastFrame=0,accumulator=0,lastUI=0,lastFPS=0,frames=0,traceClock=0;
 let physicsCPU=0,viewCPU=0,timedFrames=0;
 let xrSession=null,xrTracking=true,sessionListeners=null,toastTimer;
+let physicsHz=90,comparisonWorker=null,comparisonResult=null,comparisonRequest=0;
 const keys=new Set(),grips=new Map(),faceButtons=new Map(),xrPoseHistory=new Map();
 const identity=()=>({x:0,y:0,z:0,w:1});
 const manual={head:{position:{x:0,y:1.65,z:0},quaternion:identity()},hands:[
@@ -19,7 +20,8 @@ const modeCopy={
  oneway:{name:'One-way PD',sub:'The object follows. The player feels nothing.',formula:'F = m (kp · e + kd · Δv)\nPlayer reaction = 0',tip:'A useful baseline. The prop still collides, but its drive does not transmit an equal opposite force into the player.'},
  relative:{name:'Reaction PD',sub:'Relative velocity, with equal opposite force.',formula:'F = m* (kp · e + kd · Δv)\nPlayer force = −F',tip:'Δv is target velocity minus grab-point velocity. The moving hand is not damped toward a stationary world. m* is the pair’s scalar reduced mass.'},
  backward:{name:'Backward PD',sub:'Timestep-adjusted gains, same reaction.',formula:'g = 1 / (1 + kd·dt + kp·dt²)\nF = m* g [kp·e + (kd+kp·dt)·Δv]',tip:'Backward gains improve the free-space timestep response. Collisions, force caps, and the iterative solver still affect the result. FF adds bounded tracked acceleration.'},
- joint:{name:'Point joint',sub:'Native Cannon constraint. Rotation is free.',formula:'Player grab point ↔ object grab point\nConstraint solver · no rotation motor',tip:'This is not Unity’s ConfigurableJoint. The force limit is per Cartesian constraint axis; the PD modes cap the whole force vector. Gains and acceleration FF do not tune this constraint.'}
+ joint:{name:'Point joint',sub:'Native Cannon constraint. Rotation is free.',formula:'Player grab point ↔ object grab point\nConstraint solver · no rotation motor',tip:'This is not Unity’s ConfigurableJoint. The force limit is per Cartesian constraint axis; the PD modes cap the whole force vector. Gains and acceleration FF do not tune this constraint.'},
+ velocity:{name:'Velocity servo',sub:'Target the next velocity. Cap the impulse.',formula:'v goal = Δposition / dt + v target\nJ = effective mass · Δv, capped at Fmax · dt',tip:'A one-substep velocity target with equal opposite linear impulse. Off-center inertia is included. Rotation has a separate capped velocity servo. No frequency, damping or acceleration FF is used. This is our teaching model, not FireBlast’s code.'}
 };
 
 function toast(message){text('toast',message);$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,2800);}
@@ -28,7 +30,7 @@ function setMode(id,announce=true){
  for(const b of $('modes').querySelectorAll('button')){const active=b.dataset.mode===id;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));}
  text('mode-description',MODES.find(m=>m.id===id).description);text('mode-formula',copy.formula);text('mode-tip',copy.tip);
  $('feedforward').disabled=id!=='backward';
- for(const name of ['frequency','damping','angularFrequency','maxTorque']) {const input=$(`param-${name}`);if(input)input.disabled=id==='joint';}
+ for(const name of ['frequency','damping','angularFrequency','maxTorque']) {const input=$(`param-${name}`);if(input)input.disabled=id==='joint'||(id==='velocity'&&name!=='maxTorque');}
  if(announce)toast(`${copy.name} · ${lab.hands.some(h=>h.heldId)?'same object, grip preserved':'controller changed'}`);
 }
 
@@ -45,7 +47,10 @@ const sliderDefs=[
  ['maxForce','Maximum drive force',50,5000,50,'N','advanced-sliders'],
  ['maxTorque','Maximum torque',0,100,1,'N·m','advanced-sliders'],
  ['bodyMass','Player mass',1,150,1,'kg','advanced-sliders'],
- ['angularFrequency','Angular frequency',1,12,.25,'Hz','advanced-sliders']
+ ['angularFrequency','Angular frequency',1,12,.25,'Hz','advanced-sliders'],
+ ['contactFrequency','Contact servo frequency',1,12,.25,'Hz','advanced-sliders'],
+ ['contactDamping','Contact servo damping',0,2.5,.05,'ζ','advanced-sliders'],
+ ['maxContactForce','Contact servo force cap',100,5000,100,'N','advanced-sliders']
 ];
 function formatParam(value,unit){return `${Number(value).toLocaleString(undefined,{maximumFractionDigits:2})} ${unit}`;}
 for(const [key,label,min,max,step,unit,parent] of sliderDefs){
@@ -84,10 +89,59 @@ function reset(){
 }
 function setPaused(value){if(xrSession)return;paused=value;text('pause',paused?'Resume':'Pause');$('pause').setAttribute('aria-label',paused?'Resume simulation':'Pause simulation');$('live-dot').classList.toggle('paused',paused);accumulator=0;}
 function toggleGrip(i){if(lab.scripted)setGuided(false);manual.hands[i].grip=!manual.hands[i].grip;lab.setInput(manual);updateManualControls();}
-function runCommand(id){if(id==='reset'){reset();toast('Room reset');}else setMode(id);}
+function runCommand(id){
+ if(id==='reset'){reset();toast('Room reset');}
+ else if(id==='contact'){const i=LOCOMOTION_MODES.findIndex(m=>m.id===lab.locomotion);setLocomotion(LOCOMOTION_MODES[(i+1)%LOCOMOTION_MODES.length].id);}
+ else setMode(id);
+}
 const view=new LabView($('viewport'),lab,runCommand);
 text('renderer-label',view.webgl?'WebGL':'Canvas fallback');
 setMode(lab.mode,false);
+
+function setLocomotion(id,announce=true){
+ lab.setLocomotion(id);$('locomotion').value=id;
+ const definition=LOCOMOTION_MODES.find(m=>m.id===id);text('contact-description',definition.description);
+ for(const key of ['contactFrequency','contactDamping','maxContactForce'])$(`param-${key}`).disabled=id!=='force';
+ if(announce)toast(`${definition.name}. Grab controller and grip are unchanged.`);
+}
+for(const scenario of SCENARIOS){const option=new Option(scenario.name,scenario.id);$('scenario').add(option);}
+for(const mode of LOCOMOTION_MODES)$('locomotion').add(new Option(mode.name,mode.id));
+function syncScenario(){const scenario=SCENARIOS.find(s=>s.id===lab.scenario)||SCENARIOS[0];$('scenario').value=scenario.id;text('scenario-description',`${scenario.description} ${scenario.duration} s recording. Turn Repeat off to keep running.`);}
+$('scenario').addEventListener('change',()=>{lab.setScenario($('scenario').value);accumulator=0;trace.length=0;traceClock=0;if(!lab.scripted){copyInputToManual();updateManualControls();}syncScenario();view.fit(closeView);updateUI();});
+$('locomotion').addEventListener('change',()=>setLocomotion($('locomotion').value));
+$('physics-hz').addEventListener('change',()=>{physicsHz=Number($('physics-hz').value);reset();toast(`${physicsHz} Hz physics. Trial reset for a clean comparison.`);});
+$('repeat-trial').addEventListener('change',()=>{lab.repeatTrial=$('repeat-trial').checked;toast(lab.repeatTrial?'Repeat enabled. Each new trial resets measurements.':'Continuous run. The experiment settles after its scripted motion.');});
+function downloadJSON(data,name){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+$('export-trial').addEventListener('click',()=>downloadJSON({...lab.exportTrial(),physicsHz,inputSource:xrSession?'webxr':lab.scripted?'guided':'desktop'},'physics-gym-trial.json'));
+function finishComparison(){comparisonWorker?.terminate();comparisonWorker=null;$('compare').disabled=Boolean(xrSession);$('cancel-comparison').hidden=true;$('comparison-progress').hidden=true;}
+$('cancel-comparison').addEventListener('click',()=>{finishComparison();text('comparison-status','Comparison cancelled. Your live trial is unchanged.');});
+$('compare').addEventListener('click',()=>{
+ if(comparisonWorker)return;
+ const requestId=++comparisonRequest;
+ const config={scenario:lab.scenario,locomotion:lab.locomotion,hz:physicsHz,params:{...lab.params}};
+ try{comparisonWorker=new Worker(new URL('./experiment-worker.js?v=3.1.0',import.meta.url),{type:'module'});}catch(error){text('comparison-status',`The comparison worker could not start: ${error.message}`);return;}
+ $('compare').disabled=true;$('cancel-comparison').hidden=false;$('comparison-progress').hidden=false;$('comparison-progress').value=0;
+ text('comparison-status','Recording one baseline input sequence…');
+ comparisonWorker.onerror=event=>{finishComparison();text('comparison-status',`Comparison could not finish: ${event.message||'worker unavailable'}`);};
+ comparisonWorker.onmessage=event=>{
+  const message=event.data;if(message.requestId!==requestId)return;
+  if(message.type==='progress'){$('comparison-progress').value=message.fraction||0;text('comparison-status',message.phase==='record'?'Recording the baseline hand actions…':`Replaying ${MODES.find(m=>m.id===message.modeId)?.short||message.modeId} · ${message.completed} / ${message.total}`);}
+  else if(message.type==='error'){finishComparison();text('comparison-status',`Comparison could not finish: ${message.message}`);}
+  else if(message.type==='result'){
+   comparisonResult=message.result;finishComparison();$('comparison-body').replaceChildren();
+   for(const row of comparisonResult.rows){
+    const tr=document.createElement('tr'),percent=value=>`${(100*value).toFixed(0)}%`;
+    const values=[row.name,row.gripRequestedFraction>0?percent(row.heldGivenGripFraction):'No grip requested',row.rmsGapCm===null?'No held samples':`${row.rmsGapCm.toFixed(1)} cm`,row.rmsGapCm===null?'—':`${row.peakGapCm.toFixed(1)} cm`,`${row.peakDriftM.toFixed(2)} m`,row.capFraction===null?'—':percent(row.capFraction),`${row.finalSpeedMps.toFixed(2)} m/s`,row.terminated?`Stopped: ${row.terminationReason}`:'Complete'];
+    for(const [i,value] of values.entries()){const cell=document.createElement(i===0?'th':'td');if(i===0)cell.scope='row';cell.textContent=value;tr.append(cell);} $('comparison-body').append(tr);
+   }
+   $('comparison-results').hidden=false;$('export-comparison').disabled=false;
+   text('comparison-status',`Complete · ${SCENARIOS.find(s=>s.id===config.scenario)?.name} · ${LOCOMOTION_MODES.find(m=>m.id===config.locomotion)?.name} · ${config.hz} Hz. One identical input trace across all five controllers.`);
+  }
+ };
+ comparisonWorker.postMessage({type:'compare',requestId,config});
+});
+$('export-comparison').addEventListener('click',()=>{if(comparisonResult)downloadJSON(comparisonResult,'physics-gym-replay-comparison.json');});
+setLocomotion(lab.locomotion,false);syncScenario();
 
 $('guided').addEventListener('click',()=>setGuided(true));$('manual').addEventListener('click',()=>setGuided(false));
 $('pause').addEventListener('click',()=>setPaused(!paused));$('reset').addEventListener('click',()=>{reset();toast('Room reset');});
@@ -114,9 +168,9 @@ document.addEventListener('keydown',event=>{
  if(xrSession||inputElement(event.target)||(event.key===' '&&event.target instanceof HTMLElement&&event.target.closest('button,a,summary')))return;
  const key=event.key.toLowerCase();keys.add(key);
  if(event.repeat)return;
- if([' ','q','e','w','a','s','d','1','2','3','4','r'].includes(key))event.preventDefault();
+ if([' ','q','e','w','a','s','d','1','2','3','4','5','r'].includes(key))event.preventDefault();
  if(key===' ')setPaused(!paused);if(key==='r')reset();if(key==='q')toggleGrip(0);if(key==='e')toggleGrip(1);
- if(/^[1-4]$/.test(key))setMode(MODES[Number(key)-1].id);
+ if(/^[1-5]$/.test(key))setMode(MODES[Number(key)-1].id);
 });
 document.addEventListener('keyup',event=>keys.delete(event.key.toLowerCase()));
 window.addEventListener('blur',()=>{keys.clear();if(!xrSession&&!lab.scripted){for(const h of manual.hands)h.grip=false;lab.setInput(manual);updateManualControls();}lastFrame=0;accumulator=0;});
@@ -188,7 +242,7 @@ $('enter-vr').addEventListener('click',async()=>{
      // Our session listener is registered before Three's. Wait until Three has
      // cleared isPresenting and restored its framebuffer before fitting/resizing.
      queueMicrotask(()=>{if(!xrSession){view.setXR(false);view.resize();}});
-     for(const id of ['guided','manual','pause','slow','kick'])$(id).disabled=false;
+     for(const id of ['guided','manual','pause','slow','kick','scenario','physics-hz','compare'])$(id).disabled=false;
      lab.setScripted(true);setGuided(true);setPaused(false);lastFrame=0;accumulator=0;
      text('enter-vr','Enter VR');$('enter-vr').disabled=false;text('xr-label','Play with your hands');
    };
@@ -196,10 +250,10 @@ $('enter-vr').addEventListener('click',async()=>{
    await view.renderer.xr.setSession(session);
    if(xrSession!==session||!view.renderer.xr.isPresenting)return;
    sessionListeners={ref:view.renderer.xr.getReferenceSpace()};sessionListeners.ref?.addEventListener('reset',onOriginReset);
-   lab.setScripted(false);reset();view.setXR(true);paused=false;slow=false;xrTracking=false;lastFrame=0;accumulator=0;keys.clear();
+   finishComparison();lab.setScripted(false);reset();view.setXR(true);paused=false;slow=false;xrTracking=false;lastFrame=0;accumulator=0;keys.clear();
    text('pause','Pause');$('live-dot').classList.remove('paused');
    $('slow').setAttribute('aria-pressed','false');$('manual-panel').hidden=true;
-   for(const id of ['guided','manual','pause','slow','kick'])$(id).disabled=true;
+   for(const id of ['guided','manual','pause','slow','kick','scenario','physics-hz','compare'])$(id).disabled=true;
    text('stage-title','Immersive VR');text('enter-vr','Exit VR');$('enter-vr').disabled=false;text('xr-label','Headset connected');
  }catch(error){console.error(error);if(xrSession){try{await xrSession.end();}catch{}xrSession=null;}view.setXR(false);$('enter-vr').disabled=false;text('enter-vr','Enter VR');toast(`VR could not start: ${error.message}`);}
 });
@@ -208,6 +262,7 @@ function updateUI(){
  const m=lab.metrics;text('gap',m.gapCm.toFixed(1));text('force',m.forceN.toFixed(0));text('speed',m.speed.toFixed(2));text('held',`${m.heldCount} / 2`);
  text('sim-time',`${m.time.toFixed(1)} s`);text('phase',lab.scripted?m.workoutPhase:(xrSession?'Tracked input':'Live hand input'));
  text('limit-state',m.limited?'Force cap reached':'Within force limit');$('limit-state').classList.toggle('limited',m.limited);
+ text('drift',`${(m.playerDriftM||0).toFixed(2)} m`);text('correction',`${(m.contactCorrectionM||0).toFixed(3)} m`);text('contact-force',`${(m.contactForceN||0).toFixed(0)} N`);text('launch',`${(m.launchSpeed||0).toFixed(2)} m/s`);
 }
 const graph=$('trace'),graphContext=graph.getContext('2d');
 function drawTrace(){
@@ -229,7 +284,7 @@ function frame(time,xrFrame){
  if(xrSession)canStep=sampleXR(xrFrame,time);
  if(canStep){
    accumulator+=elapsed*(slow&&!xrSession ? .25 : 1);
-   const fixed=1/90;let count=0;
+   const fixed=1/physicsHz;let count=0;
    while(accumulator>=fixed&&count<9){if(!xrSession)stepDesktop(fixed);lab.step(fixed);accumulator-=fixed;count++;traceClock+=fixed;}
    if(count===9)accumulator=0;
  }else accumulator=0;

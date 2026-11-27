@@ -36,11 +36,11 @@ jobs:
           for module in app.js sim.js scene.js canvas-scene.js; do
             node --input-type=module --check < "$module"
           done
-          for module in vr/app.js vr/view.js vr/physics.js; do
+          for module in vr/*.js; do
             node --input-type=module --check < "$module"
           done
           node tests/simulation.mjs
-          node --test vr/tests/physics.mjs
+          node --test vr/tests/*.mjs
           python3 scripts/validate-deliverables.py
 
       - name: Fast-forward the publishing branch

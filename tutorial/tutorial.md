@@ -49,7 +49,8 @@ Run the desktop controls first. Use WASD to approach a cube, select the right vi
 | Toggle acceleration feedforward | F | X, left primary button; custom modes only. |
 | Toggle custom reaction forces | B or desktop UI | Set in Inspector before the headset test. Native CJ always reacts. |
 | FireBlast angular/mass preset | P or desktop UI | Set in Inspector before the headset test. |
-| Toggle locomotion motor | M or desktop UI | Set in Inspector before the headset test. |
+| Cycle contact architecture | N or desktop UI | B, right secondary button. |
+| Toggle locomotion motor | M or desktop UI | Use the contact architecture control or Inspector. |
 | Reset scene | R | Y, left secondary button. |
 
 The in-world status board identifies the active controller and feedforward state. For an initial headset check, leave the motor enabled, start with the teaching preset, and perform A/B switches with A while keeping grip held.
@@ -87,7 +88,9 @@ In that source, `Update()` sweeps hand positions, computes player displacement f
 
 Dropping another force controller onto that player does not guarantee its impulses survive those velocity writes. Decide who owns the velocity at each phase of movement.
 
-Our `GymMotor` is an **adaptation**, not an exact port of Gorilla Tag’s feel. It uses fixed-step hand-contact logic and a bounded acceleration motor toward planted-hand motion. It adds forces instead of routinely replacing the player’s entire velocity. Grab reactions therefore have a route into the body’s motion, although the active motor can still oppose them. The original launch history and collision behavior remain a useful source to study, not a claim of parity with this kit.
+Our `GymMotor` is an **adaptation**, not an exact port of Gorilla Tag’s feel. Its independent contact architecture selector chooses **Off**, **ForceServo**, or **CastCorrection**. ForceServo uses bounded acceleration toward planted-hand motion. CastCorrection moves the player by an averaged contact correction, constrained by body/head sweeps, and uses a bounded tracked-stroke release rule. Off isolates grab reactions. The active motor can still oppose a grab reaction. The original collision and launch-history code remains a reference, not a claim of parity with this kit.
+
+The 27 November contributor clarification separates velocity-tracked hands, sphere-cast player locomotion, and custom grabbing. We have FireBlast’s description, not his source. Our velocity servo and cast motor are independent teaching examples. Chapter 13 describes the comparison this distinction enables.
 
 Do not attach the original `GorillaLocomotion.Player` to the generated teaching player at the same time. Experiment with one movement owner at a time, then explicitly design the handoff if you combine them.
 
@@ -108,7 +111,7 @@ The runtime files are in `Assets/TrontPhysicsGym/Runtime`; the builder and check
 
 Begin with `GymHand`, then follow the math helpers. The important lifecycle is **acquire → capture attachment → drive → release**. Switching modes retains the current held object and attachment, tears down the previous drive, and starts the selected one. Two active controllers on one grab make the comparison meaningless.
 
-## 5. The three controllers
+## 5. The four grab controllers
 
 ### ConfigurableJoint: let the solver enforce a driven relationship
 
@@ -163,6 +166,12 @@ Vector3 acceleration = (kp * g) * error
 This softens the effective gains according to the simulation interval. It makes the ideal linear tracking problem more tolerant of high gains and coarse steps. Force caps, delayed input, changing contacts, off-center torque, and a second motor create a different system; they do not inherit a blanket stability guarantee. [Digital Opus, Part I](https://digitalopus.ca/site/pd-controllers/).
 
 Digital Opus’s Part II and the [Tan, Liu, and Turk SPD paper](https://www.jie-tan.net/project/spd.html) discuss related next-step methods. The names are not interchangeable. The kit’s `BackwardPD` mode implements the formula above; the Physics Gym’s other SPD experiments are separately labeled. Increasing a gain cannot make a finite force budget unlimited.
+
+### Velocity servo: request a velocity with a finite budget
+
+The additional `VelocityServo` mode converts the remaining position gap into a desired closing velocity over the physics step, includes target motion, and corrects the velocity error within a finite force budget. The player receives the paired reaction when enabled. It does not replace the held object’s entire `linearVelocity` each tick. Rotation has a separately capped angular response.
+
+Frequency and damping are not tuning knobs for this one-step translational servo. Force limits, torque limits, timestep and contact behavior still matter. A velocity request can be aggressive even though it has no compliant spring. This is our comparison mode, not FireBlast’s unreleased grabbing code. Unity and browser implementations use different effective-mass approximations; inspect each source before comparing numerical results.
 
 ## 6. Feedforward, damping, and the One Euro question
 
@@ -283,16 +292,17 @@ For the [WebXR companion](../vr/), open the HTTPS page in a browser that support
 | Reaction PD | Relative PD with custom reaction enabled. |
 | Backward PD | Backward PD with the reaction path enabled. |
 | Cannon point joint | Native solver connection concept; not a ConfigurableJoint reproduction. |
+| Capped velocity servo | Unity VelocityServo, while accounting for different off-center mass approximations. |
 
-The browser’s point joint leaves rotation **free**, with no angular motor. The three PD modes apply a custom object-orientation drive, so this rotational difference is a capability difference, not evidence that one implementation tracks better under identical constraints. The point-joint cap applies separately to each Cartesian constraint axis; the PD cap applies to the force vector’s magnitude. Cannon does **not** implement Unity’s Slerp drive or the complete PhysX ConfigurableJoint. Explore the force paths in the browser, then validate the Unity implementation separately.
+The browser’s point joint leaves rotation **free**, with no angular motor. The three PD modes and velocity servo apply a custom object-orientation drive, so this rotational difference is a capability difference, not evidence that one implementation tracks better under identical constraints. The point-joint cap applies separately to each Cartesian constraint axis; the PD cap applies to the force vector’s magnitude. Cannon does **not** implement Unity’s Slerp drive or the complete PhysX ConfigurableJoint. Explore the force paths in the browser, then validate the Unity implementation separately.
 
 ### Acceptance checklist before sharing a build
 
 - [ ] Fresh Unity import compiles without errors; generated scene and action references are present.
-- [ ] Desktop grab, release, restart, and all three live mode selections work.
+- [ ] Desktop grab, release, restart, and all four live grab selections and all three contact architectures work.
 - [ ] Headset floor height, scale, left/right poses, grip input, and turning are correct.
 - [ ] Tracking interruption and recentering do not generate a large impulse.
-- [ ] The same held object survives repeated CJ → relative PD → backward PD switches.
+- [ ] The same held object survives repeated CJ → relative PD → backward PD → velocity servo switches.
 - [ ] Wall and floor contacts transfer load through the intended body/proxy path.
 - [ ] Rotated pickup and all-axis tool rotations preserve the captured grip.
 - [ ] Releases preserve sensible physical momentum without a duplicate throw boost.
@@ -302,9 +312,93 @@ The browser’s point joint leaves rotation **free**, with no angular motor. The
 
 Each prop has one owning hand; a two-handed rifle grip needs additional logic. This kit stops at local interaction. Multiplayer ownership, authoritative physics, reconciliation, avatar presentation, and networked throws require a separate design. First establish a grip that feels good and behaves predictably on one headset.
 
+## 13. Architecture and replay
+
+The latest contributor clarification makes three responsibilities explicit: velocity-tracked hands, sphere-cast locomotion, and a separate grab controller. FireBlast has not supplied his implementation here. The examples in this repository demonstrate those choices independently; they do not reproduce his unpublished rig.
+
+### Change one responsibility at a time
+
+| Responsibility | Available comparison | Keep fixed while testing it |
+| --- | --- | --- |
+| Grab control | Native constraint, relative PD, backward PD, capped velocity servo; browser one-way baseline. | Contact architecture, input sequence, mass, cap, timing and grip point. |
+| Player contact | Cast correction, force servo, off. | Grab controller and input sequence. |
+| Input | Guided motion, desktop hand controls, headset tracking, recorded actions or environment API. | The engine and controller settings being evaluated. |
+
+Use Unity **N / Touch B** to cycle the contact architecture, independently of **C / Touch A** for grabbing. The browser has a Player contact selector and a triggerable Contact mode button inside VR. Switching either selection keeps the current prop held.
+
+**Cast correction** averages planted-hand displacement and moves the body subject to collision checks. A release rule derives launch from deliberate tracked strokes. **Force servo** uses a finite response to contact demand. **Off** removes the empty-hand locomotion contribution so a grabbing reaction can be observed on its own. Engine body collisions and gravity still exist.
+
+The browser hands are massless query/attachment points. They are not a second set of dynamic hand rigidbodies. Its conservative expanded-box sweeps operate against static boxes. A browser floor test therefore does not validate a Unity rig’s capsule contacts, moving support behavior or full articulated hand inertia.
+
+### Comet’s mid-air question
+
+Native PhysX drives participate in the solver and can handle coupled constraints more robustly than a force computed once before the solve. Their drive law is itself PD-like. Both approaches actuate the simulation; “real versus fake forces” is not the useful distinction. Mass scaling and projection can also deliberately change physical behavior. See the [PhysX joint documentation](https://nvidia-omniverse.github.io/PhysX/physx/5.4.0/docs/Joints.html).
+
+An internally actuated dynamic hand/body pair can conserve total momentum while the player body moves opposite the hand. That reaction can be physically consistent and still undesirable in a VR camera rig. A missing reaction, a velocity overwrite, or counting body motion twice is a different problem. Measure body motion, reaction, and input reference frames separately.
+
+In the browser **Airborne arm sweep** uses zero gravity, no grip and free-space hand targets to isolate whether ordinary empty-hand tracking moves the player. It does not simulate a complete normal-gravity jump or inertial hand bodies. For held-prop recoil, use manual input and the external-impulse experiments too.
+
+### Repeatable browser experiments
+
+The Grab Lab provides five scenario presets:
+
+| Scenario | Intended observation |
+| --- | --- |
+| Full workout | Pickup, reversal, wall pressure, release and floor pushing. |
+| Airborne arm sweep | Unwanted player motion from free-space empty-hand tracking. |
+| Two-hand floor push | Direct correction versus finite contact force under identical paired strokes. |
+| Prop against wall | Grab reaction, saturation and recovery from an obstructed target. |
+| External shove | What survives a single 90 N·s sideways player impulse at two seconds. |
+
+Choose **72, 90 or 120 Hz** separately from rendering. Turn **Repeat experiment** off to keep recording after the motion sequence ends; this does not pause the simulation. Reset before a fresh controlled comparison. Export current trial for settings and aggregate measurements.
+
+**Compare all controllers** uses a background module Worker. It records one baseline body-local head/hand sequence, including hand orientation and grip state, then replays those exact samples in a fresh world for every grab mode. The source workout adjusts its first reach to the settling cube; recording once prevents each controller from receiving a differently adapted input.
+
+Every result contains the same input fingerprint, the initial-state snapshot, selected environment settings and the complete recording. This fingerprint is an audit aid, not a cryptographic signature. A trace created for one scenario, physics rate or engine implementation must not be silently reinterpreted as another.
+
+Read the scoreboard as several observations:
+
+- **Held / grip requested:** how often a requested grip resulted in a held object. A controller that never acquired anything does not earn a perfect tracking score.
+- **RMS and peak gap:** measured only while an object is held. No held samples produce `null` in the export and “No held samples” in the UI.
+- **Peak displacement:** distance from the player’s starting origin. In locomotion tests that can be intentional movement, not an error.
+- **Force cap:** fraction of held samples at the drive limit. The native point constraint’s axis limits and custom vector limits remain different.
+- **Final speed:** motion left at the end of the recording. Inspect the action trace and contacts before treating more speed as better.
+
+A successful replay is not a universal ranking. The freely rotating point joint differs from orientation-driven modes. A different policy can also learn to exploit a controller that performs poorly under this particular recording.
+
+### Public environment boundary for learning code
+
+`vr/experiments.js` exports `GrabEnvironment`, `ACTION_SCHEMA`, and `OBSERVATION_SCHEMA`. It contains no neural network, optimizer or pretrained policy. It exposes the physics experiment to an independently written trainer through a small stable interface:
+
+| Method | Result |
+| --- | --- |
+| `new GrabEnvironment(config)` | Fresh lab with selected mode, scenario, contact architecture and fixed Hz. |
+| `reset(patch)` | Fresh fixed initial scene and its observation; this implementation has no randomized reset or seed. |
+| `step(action)` | One physics step, observation, `reward: null`, termination/truncation flags and diagnostic info. |
+| `observe()` | Raw SI measurements and normalized values using the exported schema. |
+| `dispose()` | Release the local physics world. |
+
+The eight actions are **left x/y/z/grip, right x/y/z/grip**, each in `[-1,1]`. Position components are shoulder-relative offsets in units of maximum arm length; vectors outside the unit sphere are projected onto it. Positive grip closes the hand. This intentionally narrow adapter fixes the head and requests identity hand rotations. Recorded traces support orientations, but this eight-action policy interface does not yet output them.
+
+The thirty observations include player displacement and velocity, each hand’s local target and velocity, held/contact flags and held gap, plus the small cube’s relative position and velocity. `observe()` returns both raw values and values divided by the exported scale and clipped to `[-5,5]`. Read `OBSERVATION_SCHEMA` for the authoritative order and units; never guess them from a neural-network input count.
+
+The episode **truncates** at its configured time limit. A nonfinite body state or player outside the explicit evaluation bounds **terminates** it. A missing cube or failed grip alone is not secretly rewarded or classified as task success.
+
+`reward: null` is deliberate. Choose an objective before training: acquire and hold a cube, reach a surface, or move the player toward a waypoint. Include limits on force demand and failed states, and ensure the agent cannot increase reward by exploiting penetration recovery or abandoning the task. Evaluate on scenarios and input sequences excluded from tuning.
+
+A saved brain from another experiment requires matching observations, normalization, actions, decision cadence, physics and objective. Shape-compatible arrays alone do not make it transferable. The public adapter is a place to connect an appropriate trainer; this release does not claim a learned policy has been trained or validated in the gym.
+
+### Moving supports and next boundaries
+
+For a moving support, store the contact relative to the support and reconstruct it in world space as that support moves. Point velocity includes both translation and rotation. Unity’s [GetPointVelocity](https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Rigidbody.GetPointVelocity.html) accounts for angular velocity.
+
+Release velocity must include carrier motion once. A world-space velocity estimate may already contain it; adding a second full carrier velocity invents an extra boost. The Unity teaching motor has support-relative contact data, but translating/rotating-platform behavior still needs runtime acceptance. A collider moved directly by its transform also needs a deliberate velocity estimate if the physics body does not report the intended motion. The browser room’s supports remain static.
+
+Ziplines, portals, moving-platform scenes, network authority, fully dynamic hand proxies and physical-headset performance are not completed features of this release. They need their own geometry, velocity ownership and acceptance tests. The current lab supplies controlled local experiments and exportable evidence for that work.
+
 ## Credits and foundations
 
-**Trent Sterling / Tront and ChatGPT** built the teaching lab, with the discussion and experiments from **Ducky / Duck (SCUG)** and **FireBlast**.
+**Trent Sterling / Tront and ChatGPT** built the teaching lab, with the discussion and experiments from **Ducky / Duck (SCUG)**, **FireBlast**, and **CometDev**.
 
 **Digital Opus is the primary technical inspiration:** [Controlling Objects With Forces and Torques I](https://digitalopus.ca/site/pd-controllers/), [Part II](https://digitalopus.ca/site/controlling-objects-with-forces-and-torques-part-2/), and [UsefulUtils](https://github.com/Phong13/UsefulUtils). David Wu’s backward PD presentation and the work of Jie Tan, C. Karen Liu, and Greg Turk provide related controller foundations.
 

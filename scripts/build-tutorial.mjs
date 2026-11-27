@@ -135,6 +135,7 @@ const html = `<!doctype html>
   <meta property="og:description" content="A complete Unity C# guide to hand locomotion, physical grabbing, joint frames and live controller A/B tests.">
   <meta property="og:type" content="article">
   <title>VR Grabbing Tutorial · Physics Gym · Tront</title>
+  <script src="../shell.js"></script>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>

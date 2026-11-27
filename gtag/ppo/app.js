@@ -18,7 +18,7 @@ const best = { human: null, ppo: null };
 const keys = new Set();
 
 // ---- three.js ----
-let renderer, scene, camera, monke, pad;
+let renderer, scene, camera, monke, pad, camAt = null, lastAction = null;
 const mat = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
 function initThree() {
   const vp = $('viewport');
@@ -26,8 +26,8 @@ function initThree() {
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   vp.prepend(renderer.domElement);
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0b1520);
-  scene.fog = new THREE.Fog(0x0b1520, 16, 48);
+  scene.background = new THREE.Color(0x101c2b);
+  scene.fog = new THREE.Fog(0x101c2b, 18, 46);
   camera = new THREE.PerspectiveCamera(55, 1, 0.05, 120);
   scene.add(new THREE.HemisphereLight(0xcfe3ff, 0x1a2430, 1.5));
   const sun = new THREE.DirectionalLight(0xffffff, 1.7); sun.position.set(5, 9, 4); scene.add(sun);
@@ -37,7 +37,16 @@ function initThree() {
     m.position.set(b.center.x, b.center.y, b.center.z); scene.add(m);
   }
   const grid = new THREE.GridHelper(60, 60, 0x4a6785, 0x2f4660); grid.position.set(0, 0.012, -15); scene.add(grid);
+  // Distance posts every 2 m so speed and progress read at a glance.
+  for (let d = 2; d <= 14; d += 2) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.06), mat(0x5f7d99)); post.position.set(-1.6, 0.25, -d); scene.add(post);
+    const line = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.012, 0.04), mat(0x5f7d99)); line.position.set(0, 0.018, -d); scene.add(line);
+    const c = document.createElement('canvas'); c.width = 128; c.height = 64;
+    const g = c.getContext('2d'); g.fillStyle = '#b9cee0'; g.font = '700 40px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(`${d} m`, 64, 34);
+    const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, fog: true })); label.scale.set(0.8, 0.4, 1); label.position.set(-1.6, 0.75, -d); scene.add(label);
+  }
   pad = new THREE.Group();
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(PAD_RADIUS, PAD_RADIUS, 3, 40, 1, true), new THREE.MeshBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false })); beam.position.y = 1.5; pad.add(beam);
   const disc = new THREE.Mesh(new THREE.CylinderGeometry(PAD_RADIUS, PAD_RADIUS, 0.04, 40), mat(0x34d399)); disc.position.y = 0.03; pad.add(disc);
   const flag = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.2), mat(0x34d399)); flag.position.set(PAD_RADIUS + 0.1, 1.1, 0); pad.add(flag);
   scene.add(pad);
@@ -97,8 +106,13 @@ function poseMonke() {
     a.target.position.copy(V3(p.rawHand(h)));
   }
   const goal = task.goal(); pad.position.set(goal.x, 0, goal.z);
-  if (sideView) { camera.position.set(head.x + 5.2, 1.9, head.z - 1.2); camera.lookAt(head.x, 0.9, head.z - 1.2); }
-  else { camera.position.set(head.x + 0.6, head.y + 1.0, head.z + 3.2); camera.lookAt(head.x, head.y - 0.5, head.z - 1.5); }
+  // Smoothed camera: hops should move the monke, not the whole picture.
+  const cx = head.x, cy = 1.0, cz = head.z;
+  if (!camAt) camAt = new THREE.Vector3(cx, cy, cz);
+  camAt.lerp(new THREE.Vector3(cx, cy, cz), 0.12);
+  if (camAt.distanceTo(new THREE.Vector3(cx, cy, cz)) > 6) camAt.set(cx, cy, cz);
+  if (sideView) { camera.position.set(camAt.x + 6.4, 2.3, camAt.z - 1.6 + 3.2); camera.lookAt(camAt.x, 0.85, camAt.z - 1.6); }
+  else { camera.position.set(camAt.x + 0.9, 2.5, camAt.z + 4.2); camera.lookAt(camAt.x, 0.6, camAt.z - 2.5); }
 }
 
 // ---- drivers ----
@@ -135,7 +149,7 @@ function finishRun(result, now) {
 }
 function physicsStep(now) {
   if (ended) { if (now - endedAt > (mode === 'human' ? 3500 : 1800)) resetRun(); return; }
-  if (sub === 0) task.begin(mode === 'ppo' && driver ? driver.act(obs) : humanAction());
+  if (sub === 0) { lastAction = Array.from(mode === 'ppo' && driver ? driver.act(obs) : humanAction()); task.begin(lastAction); }
   const over = task.substep();
   if (++sub >= REPEAT || over) {
     sub = 0;
@@ -178,38 +192,68 @@ function onStats({ stats, brain: b }) {
   lastStat = { decisions: stats.decisions, at: now };
   // A shipped or loaded brain stays in the driving seat until training actually changes it.
   if (training || brainSource === 'live' || brainSource === 'none') setBrain(b, 'live');
-  if (stats.window > 0 && training) history.push({ x: stats.decisions, ret: stats.meanReturn, success: stats.successRate });
+  if (stats.window > 0 && training) history.push({ x: stats.decisions, ret: stats.meanReturn, success: stats.successRate, level: stats.level });
+  if (history.length > 1600) history = history.filter((_, i) => i % 2 === 0 || i === history.length - 1);
   text('t-decisions', stats.decisions.toLocaleString());
   text('t-episodes', stats.episodes.toLocaleString());
   text('t-rate', rate ? Math.round(rate).toLocaleString() : '–');
   text('t-success', stats.window ? `${Math.round(stats.successRate * 100)}%` : '–');
   text('t-return', stats.window ? stats.meanReturn.toFixed(1) : '–');
   text('t-noise', stats.entropy.toFixed(2));
-  text('t-level', `${stats.distance} m (level ${stats.level + 1} of ${LEVELS.length})`);
+  text('t-level', `level ${stats.level + 1} of ${LEVELS.length}`);
+  document.querySelectorAll('#levels li').forEach((li, i) => { li.classList.toggle('done', i < stats.level); li.classList.toggle('now', i === stats.level); });
+  $('promo-fill').style.width = `${stats.window ? Math.round(stats.successRate * 100) : 0}%`;
+  text('g-success-now', stats.window ? `now ${Math.round(stats.successRate * 100)}% at ${stats.distance} m` : '');
+  if (window.gymShell) window.gymShell.badge(training && stats.window ? `${stats.distance} m · ${Math.round(stats.successRate * 100)}%` : '');
   drawGraphs();
 }
 function updateTrainUI() {
   const b = $('train');
   b.textContent = training ? 'Pause training' : (lastStat && lastStat.decisions ? 'Resume training' : 'Start training');
   b.classList.toggle('accent', !training);
+  const st = $('train-state'); st.classList.toggle('on', training); st.textContent = training ? 'Training' : (lastStat && lastStat.decisions ? 'Paused' : 'Idle');
+  if (!training && window.gymShell) window.gymShell.badge('');
 }
-function drawGraph(id, key, lo, hi) {
-  const c = $(id), g = c.getContext('2d'), W = c.width, H = c.height;
+function drawGraph(id, key, lo, hi, fmt) {
+  const c = $(id), dpr = Math.min(devicePixelRatio || 1, 2);
+  const W = c.clientWidth || 400, H = c.clientHeight || 120;
+  if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+  const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, W, H);
-  g.strokeStyle = '#233849'; g.lineWidth = 1;
-  for (let i = 1; i < 4; i++) { g.beginPath(); g.moveTo(0, H * i / 4); g.lineTo(W, H * i / 4); g.stroke(); }
-  if (history.length < 2) { g.fillStyle = '#758d9f'; g.font = '22px system-ui'; g.fillText('Waiting for the first episodes…', 16, H / 2 + 8); return; }
-  const x0 = history[0].x, x1 = history[history.length - 1].x || 1;
-  g.strokeStyle = '#89ead6'; g.lineWidth = 3; g.beginPath();
-  history.forEach((p, i) => { const x = (p.x - x0) / Math.max(1, x1 - x0) * W, y = H - (Math.max(lo, Math.min(hi, p[key])) - lo) / (hi - lo) * (H - 8) - 4; if (i) g.lineTo(x, y); else g.moveTo(x, y); });
-  g.stroke();
+  const L = 38, R = 10, T = 10, B = 20, w = W - L - R, h = H - T - B;
+  g.font = '11px system-ui'; g.textBaseline = 'middle';
+  for (let i = 0; i <= 4; i++) {
+    const y = T + h * i / 4;
+    g.strokeStyle = '#1d3142'; g.lineWidth = 1; g.beginPath(); g.moveTo(L, y); g.lineTo(L + w, y); g.stroke();
+    g.fillStyle = '#6f8597'; g.textAlign = 'right'; g.fillText(fmt(hi - (hi - lo) * i / 4), L - 6, y);
+  }
+  if (history.length < 2) { g.fillStyle = '#758d9f'; g.font = '13px system-ui'; g.textAlign = 'center'; g.fillText('Press Start training', L + w / 2, T + h / 2); return; }
+  const x0 = history[0].x, x1 = history[history.length - 1].x, span = Math.max(1, x1 - x0);
+  const X = v => L + (v - x0) / span * w, Y = v => T + h - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * h;
+  g.textAlign = 'left'; g.fillStyle = '#6f8597'; g.textBaseline = 'alphabetic';
+  g.fillText('0', L, H - 5); g.textAlign = 'right'; g.fillText(`${Math.round(x1 / 1000)}k decisions`, L + w, H - 5);
+  // Pad moved further away: mark it, since success drops on purpose there.
+  let row = 0, lastX = -99;
+  for (let i = 1; i < history.length; i++) if (history[i].level !== history[i - 1].level) {
+    const x = X(history[i].x);
+    row = x - lastX < 60 ? row + 1 : 0; lastX = x;
+    g.strokeStyle = '#f5c26b'; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + h); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#f5c26b'; g.textAlign = x > L + w - 50 ? 'right' : 'left'; g.textBaseline = 'top'; g.fillText(`pad ${LEVELS[history[i].level]} m`, x + (x > L + w - 50 ? -4 : 4), T + 2 + row * 13);
+  }
+  g.beginPath();
+  history.forEach((p, i) => { if (i) g.lineTo(X(p.x), Y(p[key])); else g.moveTo(X(p.x), Y(p[key])); });
+  g.strokeStyle = '#89ead6'; g.lineWidth = 2; g.lineJoin = 'round'; g.stroke();
+  g.lineTo(L + w, T + h); g.lineTo(L, T + h); g.closePath(); g.fillStyle = 'rgba(137,234,214,.09)'; g.fill();
+  const lastP = history[history.length - 1];
+  g.beginPath(); g.arc(X(lastP.x), Y(lastP[key]), 4, 0, Math.PI * 2); g.fillStyle = '#f2f6fb'; g.fill();
 }
 function drawGraphs() {
   let lo = -5, hi = 5;
   for (const p of history) { lo = Math.min(lo, p.ret); hi = Math.max(hi, p.ret); }
-  drawGraph('g-return', 'ret', lo, hi);
-  text('g-return-range', `${lo.toFixed(0)} to ${hi.toFixed(0)}`);
-  drawGraph('g-success', 'success', 0, 1);
+  lo = Math.floor(lo / 5) * 5; hi = Math.ceil(hi / 5) * 5;
+  drawGraph('g-return', 'ret', lo, hi, v => v.toFixed(0));
+  text('g-return-range', history.length ? `now ${history[history.length - 1].ret.toFixed(1)}` : '');
+  drawGraph('g-success', 'success', 0, 1, v => `${Math.round(v * 100)}%`);
 }
 
 // ---- UI ----
@@ -272,6 +316,14 @@ function hud(now) {
   text('m-stuck', `${p.hands[0].wasTouching ? 'L' : '–'} ${p.hands[1].wasTouching ? 'R' : '–'}`);
   const left = Math.max(0, (HORIZON - task.t) / 15);
   text('line', mode === 'human' ? `You are driving. ${left.toFixed(0)} s left.` : (driver ? `PPO is driving (${brainSource === 'shipped' ? 'shipped brain' : brainSource === 'file' ? 'brain from file' : 'live brain'}). ${left.toFixed(0)} s left.` : 'No brain yet.'));
+  const total = task.distance || LEVELS[LEVELS.length - 1], done = Math.max(0, Math.min(1, 1 - task.goalDistance() / total));
+  $('track-fill').style.width = $('track-dot').style.left = `${(done * 100).toFixed(1)}%`;
+  text('track-goal', `${total} m`);
+  if (lastAction) [1, 2, 5, 6].forEach((ch, i) => {
+    const v = Math.max(-1, Math.min(1, lastAction[ch])), bar = $(`s-${i}`);
+    bar.style.left = `${v < 0 ? 50 + v * 50 : 50}%`; bar.style.width = `${Math.abs(v) * 50}%`;
+  });
+  text('signals-who', mode === 'human' ? 'from your keys' : 'from the neural net');
   if (++frames && now - fpsClock > 1000) { text('fps', `${Math.round(frames * 1000 / (now - fpsClock))} fps`); frames = 0; fpsClock = now; }
 }
 function frame(now) {
@@ -286,6 +338,7 @@ function frame(now) {
 async function boot() {
   try { initThree(); } catch (error) { const e = $('load-error'); e.hidden = false; e.textContent = `This page needs WebGL. ${error.message}`; return; }
   bind(); setMode('human'); drawGraphs();
+  addEventListener('resize', drawGraphs); addEventListener('gym:visibility', e => { if (e.detail.visible) { last = 0; drawGraphs(); } });
   try {
     const response = await fetch('./brain.json', { cache: 'no-cache' });
     if (response.ok) { shipped = await response.json(); checkBrain(shipped); }

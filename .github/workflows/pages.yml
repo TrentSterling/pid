@@ -39,6 +39,7 @@ jobs:
           for module in vr/*.js gtag/*.js gtag/rl/*.js gtag/ppo/*.js; do
             node --input-type=module --check < "$module"
           done
+          node --check shell.js
           node tests/simulation.mjs
           node --test vr/tests/*.mjs
           python3 scripts/validate-deliverables.py

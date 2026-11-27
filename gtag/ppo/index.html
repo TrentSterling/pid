@@ -7,6 +7,7 @@
   <meta name="description" content="Drive a Gorilla Tag style monke with four keys, QWOP style, then hand the same controls to a neural network and watch PPO learn it live in your browser. Hand-written PPO, no ML library.">
   <title>Monke PPO · Physics Gym</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='9' fill='%230c131c'/%3E%3Cpath d='M9 29V19m7 10V10m8 19V15m7 14V6' stroke='%2389ead6' stroke-width='4'/%3E%3C/svg%3E">
+  <script src="../../shell.js"></script>
   <link rel="stylesheet" href="../../vr/styles.css?v=3.1.0">
   <link rel="stylesheet" href="./ppo.css">
   <script type="importmap">{"imports":{"three":"../../vr/vendor/three.module-0.170.0.js"}}</script>
@@ -25,6 +26,7 @@
         <div id="viewport" class="viewport" tabindex="0" aria-label="3D view of the monke. Use Q and W for the left hand, O and P for the right hand.">
           <div class="view-tools" role="group" aria-label="Camera"><button id="camera">Side view</button></div>
           <div class="scene-hint"><span class="hint-number" id="driver-badge">YOU</span><div><b id="hint-title"></b><span id="hint-text"></span></div></div>
+          <div class="track" aria-hidden="true"><span>start</span><div><i id="track-fill"></i><b id="track-dot"></b></div><span id="track-goal">12 m</span></div>
           <div class="win" id="banner" hidden><span id="banner-text"></span></div>
           <div id="load-error" class="load-error" role="alert" hidden></div>
         </div>
@@ -39,25 +41,39 @@
           <div><span>Your best</span><b id="m-best">–</b></div>
           <div><span>PPO best</span><b id="m-ppo-best">–</b></div>
         </div>
+        <div class="signals" aria-label="Hand commands right now">
+          <span class="signals-title">Hand commands<small id="signals-who">from your keys</small></span>
+          <div><span>L height</span><i><b id="s-0"></b></i></div><div><span>L forward</span><i><b id="s-1"></b></i></div>
+          <div><span>R height</span><i><b id="s-2"></b></i></div><div><span>R forward</span><i><b id="s-3"></b></i></div>
+        </div>
         <div class="expert-line" id="line" aria-live="polite"></div>
       </section>
       <aside class="inspector">
-        <section class="panel">
-          <div class="section-heading"><div><p class="eyebrow">THE LEARNER</p><h2>PPO, live in this tab</h2></div></div>
+        <section class="panel learner">
+          <div class="section-heading"><div><p class="eyebrow">THE LEARNER</p><h2>PPO, live in this tab</h2></div><span class="train-state" id="train-state">Idle</span></div>
+          <button id="train" class="accent train-main">Start training</button>
+          <div class="train-buttons"><button id="scratch" title="Throw the brain away and start again">From scratch</button><button id="shipped" title="Load a brain trained ahead of time">Trained brain</button></div>
           <p class="field-hint" id="brain-label">No brain loaded.</p>
-          <div class="train-buttons"><button id="train" class="accent">Start training</button><button id="scratch">From scratch</button><button id="shipped">Trained brain</button></div>
-          <div class="train-stats">
-            <span>Decisions <b id="t-decisions">0</b></span><span>Per second <b id="t-rate">–</b></span>
-            <span>Episodes <b id="t-episodes">0</b></span><span>Success <b id="t-success">–</b></span>
-            <span>Mean return <b id="t-return">–</b></span><span>Policy noise <b id="t-noise">–</b></span>
-            <span class="wide">Pad distance <b id="t-level">–</b></span>
+          <div class="curriculum" aria-label="Curriculum">
+            <div class="curriculum-head"><span>Pad distance</span><span id="t-level">–</span></div>
+            <ol id="levels"><li>4 m</li><li>8 m</li><li>12 m</li></ol>
+            <div class="promo"><i id="promo-fill"></i><u></u></div>
+            <div class="curriculum-foot"><span>Success on this pad</span><span>moves on at 70%</span></div>
           </div>
+          <div class="tiles">
+            <div><span>Success</span><b id="t-success">–</b></div>
+            <div><span>Decisions</span><b id="t-decisions">0</b></div>
+            <div><span>Per second</span><b id="t-rate">–</b></div>
+            <div><span>Episodes</span><b id="t-episodes">0</b></div>
+            <div><span>Mean return</span><b id="t-return">–</b></div>
+            <div><span>Policy noise</span><b id="t-noise">–</b></div>
+          </div>
+          <div class="trace-heading"><span>Success rate, last 100 episodes</span><span id="g-success-now"></span></div>
+          <canvas id="g-success" class="graph tall" aria-label="Success rate over training"></canvas>
           <div class="trace-heading"><span>Mean return per episode</span><span id="g-return-range"></span></div>
-          <canvas id="g-return" class="graph" width="600" height="180" aria-label="Mean return over training"></canvas>
-          <div class="trace-heading"><span>Success rate (last 100 episodes)</span><span>0 to 100%</span></div>
-          <canvas id="g-success" class="graph" width="600" height="140" aria-label="Success rate over training"></canvas>
+          <canvas id="g-return" class="graph" aria-label="Mean return over training"></canvas>
           <div class="train-buttons"><button id="save">Save brain</button><label class="file-button">Load brain<input id="load" type="file" accept="application/json,.json" hidden></label></div>
-          <p class="field-hint" id="train-note">Training runs in a background thread and the monke always uses the newest brain. From scratch it reached the 12 m pad on 99% of attempts after about 30 seconds in our two test runs; your machine and your luck will differ.</p>
+          <p class="field-hint" id="train-note">Training runs in a background thread, keeps going while you look at the other tabs, and the monke always uses the newest brain. From scratch it reached the 12 m pad on 99% of attempts after about 30 seconds in our two test runs; your machine and your luck will differ.</p>
         </section>
       </aside>
     </div>

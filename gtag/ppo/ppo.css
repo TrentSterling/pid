@@ -19,3 +19,45 @@
 .graph{display:block;width:100%;height:auto;background:#0b1721;border:1px solid #233849;border-radius:6px;margin-bottom:12px}
 @media(max-width:600px){.qwop{grid-template-columns:1fr 1fr;gap:8px;padding:10px}.hand-keys button{min-height:60px;font-size:13px;padding:6px}}
 .train-stats .wide{grid-column:1/-1}
+
+/* layout pass: wider learner column, compact intro, bigger graphs */
+.intro h1{font-size:clamp(24px,2.6vw,36px)}
+.intro{margin-bottom:18px}
+@media(min-width:1100px){.lab-grid{grid-template-columns:minmax(0,1fr) 440px}}
+.viewport{min-height:min(56vh,560px)}
+.learner .section-heading{align-items:center}
+.train-state{font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;border-radius:999px;border:1px solid #344759;color:var(--muted)}
+.train-state.on{border-color:#5c9e8f;color:#b5fff0;background:#17302e}
+.train-state.on::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#67d8c5;margin-right:7px;animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+.train-main{width:100%;min-height:52px;font-size:16px;font-weight:700;margin-top:10px}
+.curriculum{margin:14px 0;padding:12px 14px;border:1px solid #233849;border-radius:10px;background:#0d1924}
+.curriculum-head,.curriculum-foot{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.curriculum-head span:last-child{color:#d8e8f1;font-weight:600}
+.curriculum ol{list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:10px 0;padding:0}
+.curriculum li{text-align:center;padding:8px 0;border-radius:7px;border:1px solid #233849;color:#6f8597;font-weight:650;font-variant-numeric:tabular-nums}
+.curriculum li.done{color:#8fd9c9;border-color:#2d5a55;background:#12262a}
+.curriculum li.done::after{content:" ✓"}
+.curriculum li.now{color:#0d131d;background:#89ead6;border-color:#89ead6}
+.promo{position:relative;height:8px;border-radius:5px;background:#16283a;margin-bottom:6px;overflow:hidden}
+.promo i{position:absolute;inset:0 auto 0 0;width:0;background:#89ead6;border-radius:5px;transition:width .3s}
+.promo u{position:absolute;left:70%;top:0;bottom:0;width:2px;background:#f2f6fb;opacity:.7}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 16px}
+.tiles div{padding:10px 12px;border:1px solid #233849;border-radius:9px;background:#0d1924}
+.tiles span{display:block;font-size:11px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+.tiles b{display:block;margin-top:4px;font-size:20px;font-weight:650;color:#eaf4fa;font-variant-numeric:tabular-nums;white-space:nowrap}
+.graph{height:120px}
+.graph.tall{height:170px}
+.track{position:absolute;left:16px;right:16px;bottom:16px;z-index:3;display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#9eb3c4;pointer-events:none}
+.track div{position:relative;flex:1;height:6px;border-radius:4px;background:rgba(255,255,255,.12)}
+.track i{position:absolute;inset:0 auto 0 0;border-radius:4px;background:#89ead6;width:0}
+.track b{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#f2f6fb;border:3px solid #6b4a2f;left:0}
+.track span:last-child{color:#34d399;font-weight:700}
+.win{inset:auto 0 52px 0}
+.signals{display:grid;grid-template-columns:auto repeat(4,1fr);gap:8px 14px;align-items:center;padding:12px 20px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+.signals-title{color:#d8e8f1;font-weight:650}.signals-title small{display:block;color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0;margin-top:2px}
+.signals div{display:grid;gap:5px}
+.signals i{position:relative;display:block;height:8px;border-radius:5px;background:#16283a}
+.signals i::after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:#3b556c}
+.signals b{position:absolute;top:0;bottom:0;border-radius:5px;background:#89ead6}
+@media(max-width:700px){.signals{grid-template-columns:1fr 1fr}.signals-title{grid-column:1/-1}.tiles{grid-template-columns:repeat(2,1fr)}.intro h1 span{display:none}}

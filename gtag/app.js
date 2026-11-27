@@ -40,7 +40,10 @@ function resetEnv(id = stageId) {
 }
 
 // ---- three.js ----
-let renderer, scene, camera, group, meshes = {};
+let renderer, scene, camera, rig, group, meshes = {};
+let xrSession = null;
+const xrHands = [null, null]; // [left, right] -> { grip, gamepad }
+const xrEdge = {};
 function initThree() {
   const vp = $('viewport');
   renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -50,9 +53,18 @@ function initThree() {
   scene.background = new THREE.Color(0x0b1520);
   scene.fog = new THREE.Fog(0x0b1520, 18, 55);
   camera = new THREE.PerspectiveCamera(62, 1, 0.05, 120);
+  // The camera lives in a rig so a headset can move it while the simulation moves the rig.
+  rig = new THREE.Group(); rig.add(camera); scene.add(rig);
+  renderer.xr.enabled = true; renderer.xr.setReferenceSpaceType('local-floor');
+  for (const i of [0, 1]) {
+    const g = renderer.xr.getControllerGrip(i);
+    g.addEventListener('connected', e => { const h = e.data.handedness === 'left' ? 0 : e.data.handedness === 'right' ? 1 : -1; if (h >= 0) xrHands[h] = { grip: g, gamepad: e.data.gamepad }; });
+    g.addEventListener('disconnected', () => { for (const h of [0, 1]) if (xrHands[h] && xrHands[h].grip === g) xrHands[h] = null; });
+    rig.add(g);
+  }
   scene.add(new THREE.HemisphereLight(0xcfe3ff, 0x1a2430, 1.4));
   const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(4, 9, 6); scene.add(sun);
-  const resize = () => { const w = vp.clientWidth, h = vp.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); };
+  const resize = () => { if (renderer.xr.isPresenting) return; const w = vp.clientWidth, h = vp.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); };
   new ResizeObserver(resize).observe(vp); resize();
 }
 const mat = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
@@ -95,7 +107,13 @@ function syncScene() {
   }
   env.cubes.forEach((c, i) => meshes.cubes[i].position.set(c.position.x, c.position.y, c.position.z));
   const fwd = yawRotate(vec(0, 0, -1), p.yaw);
-  if (chase) {
+  const inXR = renderer.xr.isPresenting;
+  meshes.head.visible = meshes.hull.visible = !inXR; for (const h of [0, 1]) { meshes.arms[h].visible = !inXR; meshes.targets[h].visible = !inXR; }
+  if (inXR) {
+    // Put the rig where it makes the real head coincide with the simulated head.
+    const local = yawRotate(vec(camera.position.x, camera.position.y, camera.position.z), p.yaw);
+    rig.rotation.y = p.yaw; rig.position.set(head.x - local.x, head.y - local.y, head.z - local.z);
+  } else if (chase) {
     const back = yawRotate(vec(0.5, 0.9, 2.8), p.yaw);
     camera.position.set(head.x + back.x, head.y + back.y, head.z + back.z);
     camera.lookAt(head.x + fwd.x * 1.5, head.y - 0.5, head.z + fwd.z * 1.5);
@@ -104,6 +122,51 @@ function syncScene() {
     camera.lookAt(head.x + fwd.x, head.y - 0.45, head.z + fwd.z);
   }
   renderer.render(scene, camera);
+}
+
+// ---- headset ----
+// Hand targets are the controllers measured from the headset, which is exactly what the
+// environment's actions mean, so the same port runs with real arms.
+function pressed(h, button) { const pad = xrHands[h] && xrHands[h].gamepad; return Boolean(pad && pad.buttons[button] && pad.buttons[button].pressed); }
+function edge(name, down) { const was = xrEdge[name]; xrEdge[name] = down; return down && !was; }
+function xrAction() {
+  const p = env.player, out = [];
+  for (const h of [0, 1]) {
+    const c = xrHands[h];
+    if (!c) { out.push(h ? 0.25 / ARM : -0.25 / ARM, -0.5 / ARM, -0.3 / ARM, -1); continue; }
+    const r = c.grip.position.clone().sub(camera.position); // both are in rig space, which already turns with the player
+    if (r.length() > ARM) r.setLength(ARM);
+    out.push(r.x / ARM, r.y / ARM, r.z / ARM, pressed(h, 1) ? 1 : -1);
+  }
+  const stick = xrHands[1] && xrHands[1].gamepad ? xrHands[1].gamepad.axes[2] || 0 : 0;
+  if (edge('turnL', stick < -0.6)) p.turn(Math.PI / 6);
+  if (edge('turnR', stick > 0.6)) p.turn(-Math.PI / 6);
+  return out;
+}
+function xrButtons() {
+  if (edge('reset', pressed(1, 4) || pressed(0, 4))) resetEnv();
+  if (edge('next', pressed(1, 5) || pressed(0, 5))) resetEnv(STAGES[(STAGES.findIndex(s => s.id === stageId) + 1) % STAGES.length].id);
+}
+async function checkXR() {
+  const b = $('enter-vr');
+  if (!b || !navigator.xr || !window.isSecureContext) return;
+  try { if (!(await navigator.xr.isSessionSupported('immersive-vr'))) return; } catch { return; }
+  b.hidden = false;
+  b.onclick = async () => {
+    if (xrSession) { xrSession.end(); return; }
+    try {
+      const session = await navigator.xr.requestSession('immersive-vr', { requiredFeatures: ['local-floor'] });
+      xrSession = session;
+      session.addEventListener('end', () => {
+        xrSession = null; b.textContent = 'Enter VR';
+        rig.position.set(0, 0, 0); rig.rotation.set(0, 0, 0); camera.fov = 62;
+        const vp = $('viewport'); renderer.setSize(vp.clientWidth, vp.clientHeight, false); camera.aspect = vp.clientWidth / vp.clientHeight; camera.updateProjectionMatrix();
+      });
+      await renderer.xr.setSession(session);
+      if (!manual) setMode(true); else resetEnv();
+      paused = false; slow = false; b.textContent = 'Exit VR';
+    } catch (error) { text('expert-line', `VR could not start: ${error.message}`); }
+  };
 }
 
 // ---- input ----
@@ -199,7 +262,7 @@ function hud(now) {
 }
 
 function frame(now) {
-  requestAnimationFrame(frame);
+  if (renderer.xr.isPresenting) xrButtons();
   const dt = Math.min((now - (last || now)) / 1000, 0.1); last = now;
   if (!paused) {
     accumulator += dt * (slow ? 0.25 : 1);
@@ -207,7 +270,7 @@ function frame(now) {
     while (accumulator >= 1 / HZ && n++ < 12) {
       accumulator -= 1 / HZ;
       if (env.terminated || env.truncated) { if (!manual) { endedAt = endedAt || now; if (now - endedAt > 3000) resetEnv(); } continue; }
-      const action = manual ? manualAction() : expert.act(obs);
+      const action = renderer.xr.isPresenting ? xrAction() : manual ? manualAction() : expert.act(obs);
       obs = env.step(action).observation;
     }
   }
@@ -217,7 +280,8 @@ function frame(now) {
 try {
   initThree(); buildUI(); bindInput(); resetEnv();
   window.gtag = { get env() { return env; }, STAGES };
-  requestAnimationFrame(frame);
+  checkXR();
+  renderer.setAnimationLoop(frame);
 } catch (err) {
   const e = $('load-error'); e.hidden = false;
   e.textContent = `This page needs WebGL. ${err.message}`;

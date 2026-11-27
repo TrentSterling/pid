@@ -25,7 +25,7 @@ Open `gtag/` on the site, or serve the repository root (`python3 -m http.server`
 | Stage 3 wall climb | Playable by hand. **No scripted routine yet.** |
 | Held cubes | Implemented. Carried mass shares launch momentum (`bodyMass / (bodyMass + heldMass)`); this is a teaching shortcut, not a joint. |
 | Desktop hands | Implemented, lightly checked (mouse and keys run without errors). Not play-tested for feel. |
-| WebXR / headset | **Not implemented here.** Use the Grab Lab. |
+| WebXR / headset | Written, **not yet run on a headset.** Enter VR button on the course: controllers are the hands (measured from the headset), grip button grabs cubes, right stick snap-turns, A or X resets, B or Y next stage. |
 | ConfigurableJoint (physics) version | Design only, in chapter 14. Not compiled in Unity, not in the Unity kit yet. |
 | Monke PPO (`ppo/`, `rl/`) | Implemented. Hand-written MLP, Adam, GAE and PPO, a training worker, a four-key player and a PPO driver for stage 1. Tested in Node (11 tests) and in headless Chromium. Not play-tested by a person, not checked on a phone or in Safari or Firefox. |
 | What the policy learned | Reaching the pad on stage 1 (12 m), using 4 of the 8 action channels (hand height and forward/back; sideways and grip are ignored on this stage). It does not have to stop on the pad, and it hops rather than walks. Other stages are not trained. |

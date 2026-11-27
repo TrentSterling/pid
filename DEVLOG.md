@@ -24,7 +24,7 @@ Newest first. Each entry says what changed, what was checked, and what is still 
 - Each section keeps its own WebGL context while alive. Fine on a desktop; unknown on a low-memory phone.
 - The Gorilla course still draws the player as spheres and a wire box, not the monke.
 - Each section still has its own intro block under the tab bar, so the pages do not yet share one layout.
-- Gorilla course and Monke PPO have no headset mode yet.
+- The Gorilla course now has an Enter VR button (controllers are the hands, grip grabs cubes, right stick snap-turns, A or X resets, B or Y next stage). It was written without a headset and has not been run on one. Monke PPO has no headset mode.
 
 ## 2026-11-27 · Monke PPO
 

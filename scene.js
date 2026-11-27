@@ -401,7 +401,7 @@ export class GymScene {
     alpha = Math.max(0, Math.min(1, alpha));
     const resetTrails = sim.time < this.lastTime || this.lastTime < 0;
     const sampleTrail = resetTrails || sim.time - this.lastTrailTime >= 1 / 30;
-    const startZ = WALL_Z - (sim.params.startDistance || 1);
+    const startZ = sim.startZ ? sim.startZ() : WALL_Z - (sim.params.startDistance || 1);
     for (let i = 0; i < this.lanes.length; i += 1) {
       const lane = this.lanes[i], player = sim.players[i];
       if (!player) continue;
@@ -415,6 +415,7 @@ export class GymScene {
       lane.shadow.scale.set(shadowScale, 1, shadowScale);
       lane.ceiling.visible = sim.exercise === 'ceiling';
       lane.startLine.position.z = startZ;
+      lane.ceiling.position.z = startZ + 0.25; // keep the slab over wherever the drill starts
       for (let handIndex = 0; handIndex < 2; handIndex += 1) {
         const h = player.hands[handIndex], visual = lane.hands[handIndex];
         this._interpolate(this._hand, h.previous, h.position, alpha);

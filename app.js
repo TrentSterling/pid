@@ -131,7 +131,7 @@ const primaryControls = [
   ['frequency', 'Natural frequency', 1, 30, 0.5, 'Hz', 'Higher values pull the hand toward its target faster.'],
   ['damping', 'Damping ratio', 0, 3, 0.05, '', '1 is the continuous-model critical-damping reference.'],
   ['maxAccel', 'Acceleration limit', 10, 1000, 10, 'm/s²', 'Caps every controller equally.'],
-  ['startDistance', 'Starting distance from wall', 0.4, 3, 0.05, 'm', 'Move the whole starting line back or forward.']
+  ['startDistance', 'Starting distance from wall', 0.4, 3, 0.05, 'm', 'Wall drills only: how far back the starting line sits. Other drills start mid-lane.']
 ];
 const advancedControls = [
   ['bodyMass', 'Body mass', 20, 150, 1, 'kg'],

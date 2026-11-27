@@ -40,6 +40,9 @@ export const PRESETS = [
 ];
 
 const WALL = 1.5, CEILING = 2.15, HAND_RADIUS = 0.105;
+// Drills that touch the wall start within reach of it. The rest start in the middle of the lane.
+export const WALL_DRILLS = Object.freeze(['wall', 'climb', 'pressure']);
+const LANE_MIDDLE = -1.25;
 const AXES = ['x', 'y', 'z'];
 const LIMITS = {
   frequency: [0.5, 30], damping: [0, 3], bodyMass: [20, 150], handMass: [0.5, 12],
@@ -176,11 +179,14 @@ export class GymSimulation {
     this.reset();
   }
 
+  /** Where every body stands at the start of a trial, along the lane. */
+  startZ() { return WALL_DRILLS.includes(this.exercise) ? WALL - this.params.startDistance : LANE_MIDDLE; }
+
   reset() {
     this.time = 0; this._recordAt = 1 / 30;
     this._sample(0, this._inputs);
     for (const player of this.players) {
-      player.body.x = 0; player.body.y = 0.88; player.body.z = WALL - this.params.startDistance;
+      player.body.x = 0; player.body.y = 0.88; player.body.z = this.startZ();
       copy(player.prevBody, player.body);
       player.velocity.x = player.velocity.y = player.velocity.z = 0;
       for (let i = 0; i < 2; i++) {

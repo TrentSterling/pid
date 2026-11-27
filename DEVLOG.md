@@ -2,6 +2,12 @@
 
 Newest first. Each entry says what changed, what was checked, and what is still rough.
 
+## 2026-11-27 · Controller gym start point
+
+![Floor push with every player in the middle of the lane](devlog/2026-11-27-start-point-floor-push.png)
+
+Players used to start 1.1 m from the wall in every drill, bunched at one end with 4.4 m of empty floor behind them. Floor push, Air tracking, Rapid reversal and Ceiling push now start in the middle of the lane. Wall shove, Climb wall and Wall pressure still start within reach of the wall, set by the starting-distance slider. The start line and the ceiling slab follow. Checked in headless Chromium on six preset and camera combinations; the 2D fallback renderer was changed the same way but not looked at.
+
 ## 2026-11-27 · One app, five sections
 
 ![Monke PPO inside the shared tab bar, training at the 12 m pad](devlog/2026-11-27-one-app-monke-ppo.png)

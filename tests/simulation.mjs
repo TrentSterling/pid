@@ -65,5 +65,7 @@ assert.equal(validated.params.trackingNoise, true);
 validated.step(NaN); validated.step(-1);
 assert.equal(validated.time, 0);
 validated.setParams({ startDistance: 2 });
-assert.equal(validated.players[0].body.z, -0.5);
+assert.equal(validated.players[0].body.z, -1.25, 'floor drill starts mid-lane whatever the wall distance is');
+for (const id of ['air', 'rapid', 'ceiling']) { validated.setExercise(id); assert.equal(validated.players[0].body.z, -1.25, `${id} starts mid-lane`); }
+for (const id of ['wall', 'climb', 'pressure']) { validated.setExercise(id); assert.equal(validated.players[0].body.z, -0.5, `${id} starts 2 m from the wall`); }
 console.log('PASS: invalid numeric controls are contained; starting distance applies to the active exercise');

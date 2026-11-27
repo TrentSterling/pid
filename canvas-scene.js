@@ -219,14 +219,14 @@ export class CanvasGymScene {
     this._line(lane, left + 0.07, 3.02, WALL, right - 0.07, 3.02, WALL, lane.color, lane.index === this.selected ? 3 : 2);
     this._line(lane, left, 0.01, -4, left, 0.01, WALL, lane.color, 1.05);
     this._line(lane, right, 0.01, -4, right, 0.01, WALL, lane.color, 1.05);
-    const start = WALL - sim.params.startDistance;
+    const start = sim.startZ ? sim.startZ() : WALL - sim.params.startDistance;
     this._line(lane, left + 0.07, 0.02, start, right - 0.07, 0.02, start, '#c9dbea', 1.4, true);
     if (sim.exercise === 'ceiling') {
       ctx.globalAlpha = 0.16;
-      this._poly(lane, [left, 2.15, -1.5, right, 2.15, -1.5, right, 2.15, WALL, left, 2.15, WALL], '#b5a165');
+      this._poly(lane, [left, 2.15, start - 1.35, right, 2.15, start - 1.35, right, 2.15, start + 1.85, left, 2.15, start + 1.85], '#b5a165');
       ctx.globalAlpha = 1;
-      this._line(lane, left, 2.15, -1.5, left, 2.15, WALL, '#b5a165');
-      this._line(lane, right, 2.15, -1.5, right, 2.15, WALL, '#b5a165');
+      this._line(lane, left, 2.15, start - 1.35, left, 2.15, start + 1.85, '#b5a165');
+      this._line(lane, right, 2.15, start - 1.35, right, 2.15, start + 1.85, '#b5a165');
     }
   }
 

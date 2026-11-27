@@ -334,7 +334,7 @@ export class GymScene {
         ? new THREE.Vector3(0.31, 0.48, -1)
         : mode === 'focus'
           ? new THREE.Vector3(0.18, 0.38, -1)
-          : new THREE.Vector3(0, 0.43, -1);
+          : new THREE.Vector3(0, 0.22, -1);
     this.camera.position.copy(center).addScaledVector(direction.normalize(), 30);
     this.orbit.target.copy(center);
     this.camera.up.copy(UP);
@@ -407,6 +407,9 @@ export class GymScene {
       if (!player) continue;
       this._interpolate(this._body, player.prevBody, player.body, alpha);
       lane.figure.position.copy(this._body);
+      // Local face is -Z; the exercise targets lie toward +Z.
+      const wallTask = ['wall','climb','pressure'].includes(sim.exercise);
+      lane.figure.rotation.set(wallTask ? -0.12 : Math.max(-0.22,Math.min(0.22,player.velocity.z*0.07)), Math.PI, 0);
       lane.shadow.position.set(this._body.x, 0, this._body.z);
       const shadowScale = 1 + Math.max(0, this._body.y - 0.85) * 0.2;
       lane.shadow.scale.set(shadowScale, 1, shadowScale);
@@ -422,13 +425,15 @@ export class GymScene {
         visual.target.visible = opts.targets !== false;
         visual.contact.position.copy(this._hand);
         visual.contact.visible = Boolean(h.contact);
-        this._shoulder.copy(this._body);
-        this._shoulder.x += handIndex ? 0.235 : -0.235;
-        this._shoulder.y += 0.24;
-        this._elbow.addVectors(this._shoulder, this._hand).multiplyScalar(0.5);
-        this._elbow.x += handIndex ? 0.13 : -0.13;
-        this._elbow.y -= 0.13;
-        this._elbow.z -= 0.06;
+        visual.contact.scale.setScalar(h.contact ? 1.35 : 1);
+        this._shoulder.set(handIndex ? 0.235 : -0.235,0.24,0).applyAxisAngle(UP,0).applyAxisAngle(new THREE.Vector3(1,0,0),-lane.figure.rotation.x).add(this._body);
+        const axis = this._hand.clone().sub(this._shoulder);
+        const distance = axis.length();
+        axis.normalize();
+        const pole = new THREE.Vector3(handIndex ? 1 : -1,-0.7,-0.35);
+        pole.addScaledVector(axis,-pole.dot(axis)).normalize();
+        const reach = Math.max(0.64,distance/2);
+        this._elbow.addVectors(this._shoulder,this._hand).multiplyScalar(0.5).addScaledVector(pole,Math.sqrt(Math.max(0,reach*reach-distance*distance/4)));
         visual.shoulder.position.copy(this._shoulder);
         visual.elbow.position.copy(this._elbow);
         this._limb(visual.upper, this._shoulder, this._elbow, 0.039);

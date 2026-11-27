@@ -70,15 +70,26 @@ function updateManualControls(){
  for(const axis of ['x','y','z']){$(`hand-${axis}`).value=manual.hands[selectedHand].position[axis];text(`hand-${axis}-value`,`${manual.hands[selectedHand].position[axis].toFixed(2)} m`);}
  for(const [i,side]of ['left','right'].entries()){const on=manual.hands[i].grip;text(`grip-${side}`,`${i?'Right':'Left'}: ${on?'gripping':'open'}`);$(`grip-${side}`).setAttribute('aria-pressed',String(on));$(`edit-${side}`).classList.toggle('active',selectedHand===i);$(`edit-${side}`).setAttribute('aria-pressed',String(selectedHand===i));}
 }
+function syncSceneHint(){
+ const prompts={
+  workout:['Watch the cube. Then switch the controller.','The guided hand repeats the same pickup, shake, and release.'],
+  airborne:['Watch the player while the hands move.','No prop and no gravity. Tracking alone should not move the origin.'],
+  floor:['Watch the player push off the floor.','Switch player contact to compare direct correction with finite force.'],
+  wall:['Watch the cube press against the wall.','Compare hand error, force limits, and reaction on the player.'],
+  shove:['Watch the player receive an external shove.','The same 90 N·s impulse arrives at two seconds. Compare recovery.']
+ };
+ const prompt=lab.scripted?prompts[lab.scenario]:['Reach for a cube. Grip, then move the hand.','WASD moves the player. The sliders move your selected hand.'];
+ $('scene-hint').querySelector('b').textContent=prompt[0];
+ $('scene-hint').querySelector('.hint-number').textContent=lab.scripted?'01':'02';
+ $('scene-hint').querySelector(':scope > div > span').textContent=prompt[1];
+}
 function setGuided(enabled){
  if(xrSession)return;
  if(!enabled&&lab.scripted)copyInputToManual();
  lab.setScripted(enabled);if(enabled)reset();else lab.setInput(manual);
  $('guided').classList.toggle('active',enabled);$('manual').classList.toggle('active',!enabled);$('guided').setAttribute('aria-pressed',String(enabled));$('manual').setAttribute('aria-pressed',String(!enabled));$('manual-panel').hidden=enabled;
  text('stage-title',enabled?'Guided workout':'Manual hands');
- $('scene-hint').querySelector('b').textContent=enabled?'Watch the cube. Then switch the controller.':'Reach for a cube. Grip, then move the hand.';
- $('scene-hint').querySelector('.hint-number').textContent=enabled?'01':'02';
- $('scene-hint').querySelector(':scope > div > span').textContent=enabled?'The guided hand repeats the same pickup, shake, and release.':'WASD moves the player. The sliders move your selected hand.';
+ syncSceneHint();
  updateManualControls();
 }
 function reset(){
@@ -106,7 +117,7 @@ function setLocomotion(id,announce=true){
 }
 for(const scenario of SCENARIOS){const option=new Option(scenario.name,scenario.id);$('scenario').add(option);}
 for(const mode of LOCOMOTION_MODES)$('locomotion').add(new Option(mode.name,mode.id));
-function syncScenario(){const scenario=SCENARIOS.find(s=>s.id===lab.scenario)||SCENARIOS[0];$('scenario').value=scenario.id;text('scenario-description',`${scenario.description} ${scenario.duration} s recording. Turn Repeat off to keep running.`);}
+function syncScenario(){const scenario=SCENARIOS.find(s=>s.id===lab.scenario)||SCENARIOS[0];$('scenario').value=scenario.id;text('scenario-description',`${scenario.description} ${scenario.duration} s recording. Turn Repeat off to keep running.`);syncSceneHint();}
 $('scenario').addEventListener('change',()=>{lab.setScenario($('scenario').value);accumulator=0;trace.length=0;traceClock=0;if(!lab.scripted){copyInputToManual();updateManualControls();}syncScenario();view.fit(closeView);updateUI();});
 $('locomotion').addEventListener('change',()=>setLocomotion($('locomotion').value));
 $('physics-hz').addEventListener('change',()=>{physicsHz=Number($('physics-hz').value);reset();toast(`${physicsHz} Hz physics. Trial reset for a clean comparison.`);});
@@ -260,7 +271,8 @@ $('enter-vr').addEventListener('click',async()=>{
 
 function updateUI(){
  const m=lab.metrics;text('gap',m.gapCm.toFixed(1));text('force',m.forceN.toFixed(0));text('speed',m.speed.toFixed(2));text('held',`${m.heldCount} / 2`);
- text('sim-time',`${m.time.toFixed(1)} s`);text('phase',lab.scripted?m.workoutPhase:(xrSession?'Tracked input':'Live hand input'));
+ const phase=m.time===0?`${SCENARIOS.find(s=>s.id===lab.scenario).name} · ready`:m.workoutPhase;
+ text('sim-time',`${m.time.toFixed(1)} s`);text('phase',lab.scripted?phase:(xrSession?'Tracked input':'Live hand input'));
  text('limit-state',m.limited?'Force cap reached':'Within force limit');$('limit-state').classList.toggle('limited',m.limited);
  text('drift',`${(m.playerDriftM||0).toFixed(2)} m`);text('correction',`${(m.contactCorrectionM||0).toFixed(3)} m`);text('contact-force',`${(m.contactForceN||0).toFixed(0)} N`);text('launch',`${(m.launchSpeed||0).toFixed(2)} m/s`);
 }
@@ -269,7 +281,7 @@ function drawTrace(){
  const w=graph.clientWidth,h=graph.clientHeight,dpr=Math.min(devicePixelRatio||1,1.75);
  if(graph.width!==Math.round(w*dpr)||graph.height!==Math.round(h*dpr)){graph.width=Math.round(w*dpr);graph.height=Math.round(h*dpr);}const c=graphContext;c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);
  const top=8,bottom=h-15,left=42,right=w-16;const max=Math.max(10,Math.ceil(Math.max(...trace.map(s=>s.value),0)/10)*10);
- c.font='10px ui-monospace,monospace';c.fillStyle='#7895a9';c.textAlign='right';c.fillText(`${max} cm`,left-6,top+8);c.fillText('0',left-6,bottom);
+ c.font='12px ui-monospace,monospace';c.fillStyle='#99adbd';c.textAlign='right';c.fillText(`${max} cm`,left-6,top+10);c.fillText('0',left-6,bottom);
  c.strokeStyle='#263b4a';c.lineWidth=1;for(const y of [top,(top+bottom)*.5,bottom]){c.beginPath();c.moveTo(left,y);c.lineTo(right,y);c.stroke();}
  if(trace.length<2)return;
  const end=traceClock,start=Math.max(0,end-10),span=10;

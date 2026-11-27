@@ -11,7 +11,10 @@ Open `gtag/` on the site, or serve the repository root (`python3 -m http.server`
 | `env.js` | `GtagEnvironment`: reset, `step(action)`, `observe()`, schemas. No reward, no policy, no trainer. |
 | `expert.js` | The scripted player. Reads only the observation, labels what it is doing. |
 | `app.js`, `index.html`, `gtag.css` | The page: Three.js view, desktop hands, stage picker, sliders for the public `Player.cs` fields. |
-| `../vr/tests/gtag.mjs` | Tests (run by CI with the other `vr/tests`). |
+| `rl/nn.js`, `rl/ppo.js` | MLP with manual backprop and Adam; Gaussian policy, GAE, PPO update. Written for this project. |
+| `rl/task.js`, `rl/trainer.js` | Stage 1 as a learning task (reward, curriculum, 15 Hz decisions); the training loop, brain format, driver and held-out evaluation. |
+| `ppo/` | The Monke PPO page, its training worker and the shipped brain. `scripts/train-monke.mjs` trains one like it (runs are time-limited, so not bit-identical). |
+| `../vr/tests/gtag.mjs`, `../vr/tests/monke-ppo.mjs` | Tests (run by CI with the other `vr/tests`). |
 
 ## Status
 
@@ -24,6 +27,9 @@ Open `gtag/` on the site, or serve the repository root (`python3 -m http.server`
 | Desktop hands | Implemented, lightly checked (mouse and keys run without errors). Not play-tested for feel. |
 | WebXR / headset | **Not implemented here.** Use the Grab Lab. |
 | ConfigurableJoint (physics) version | Design only, in chapter 14. Not compiled in Unity, not in the Unity kit yet. |
-| ClimbPPO / learned policy | Not included. The environment is the boundary a policy would use; the 6-action planar ClimbPPO brain does not apply to this 8-action 3D interface. |
+| Monke PPO (`ppo/`, `rl/`) | Implemented. Hand-written MLP, Adam, GAE and PPO, a training worker, a four-key player and a PPO driver for stage 1. Tested in Node (11 tests) and in headless Chromium. Not play-tested by a person, not checked on a phone or in Safari or Firefox. |
+| What the policy learned | Reaching the pad on stage 1 (12 m), using 4 of the 8 action channels (hand height and forward/back; sideways and grip are ignored on this stage). It does not have to stop on the pad, and it hops rather than walks. Other stages are not trained. |
+| Shipped brain (`ppo/brain.json`) | Seed 1, 371k decisions, about 2.5 minutes on one Node thread. Reached the pad in 100 of 100 held-out spawns, and 100 of 100 at double spawn jitter. |
+| Multi-worker training | Not implemented. One training thread. |
 
 The numeric defaults are the ones common in Gorilla Tag clone tutorials, not Gorilla Tag's own tuning.

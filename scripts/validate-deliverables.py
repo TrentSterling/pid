@@ -58,13 +58,13 @@ def check_link(page, href):
 
 
 def main():
-    pages = [ROOT / 'index.html', ROOT / 'vr/index.html', ROOT / 'gtag/index.html', ROOT / 'tutorial/index.html']
+    pages = [ROOT / 'index.html', ROOT / 'vr/index.html', ROOT / 'gtag/index.html', ROOT / 'gtag/ppo/index.html', ROOT / 'tutorial/index.html']
     for page in pages:
         parsed = Page()
         parsed.feed(page.read_text())
         for link in parsed.links:
             check_link(page, link)
-    print('Four entry pages: local links, import maps, anchors and unique IDs checked.')
+    print('Five entry pages: local links, import maps, anchors and unique IDs checked.')
 
     tutorial_hash = hashlib.sha256((ROOT / 'tutorial/tutorial.md').read_bytes()).hexdigest()
     assert f'Source SHA-256: {tutorial_hash}' in (ROOT / 'tutorial/index.html').read_text(), 'Tutorial HTML is stale; rebuild it.'

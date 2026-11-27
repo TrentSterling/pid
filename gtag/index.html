@@ -15,7 +15,7 @@
 <div class="shell">
   <header class="masthead">
     <a class="brand" href="../" aria-label="Physics Gym home"><span class="brand-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><b>PHYSICS GYM</b><small>TRONT LABS</small></span></a>
-    <nav aria-label="Main navigation"><a href="../">Controller gym</a><a href="../vr/">Grab lab</a><a class="active" href="./" aria-current="page">Gorilla course</a><a href="../tutorial/">Unity tutorial <span aria-hidden="true">↗</span></a><a href="https://github.com/TrentSterling/pid" target="_blank" rel="noopener">Source</a></nav>
+    <nav aria-label="Main navigation"><a href="../">Controller gym</a><a href="../vr/">Grab lab</a><a class="active" href="./" aria-current="page">Gorilla course</a><a href="./ppo/">Monke PPO</a><a href="../tutorial/">Unity tutorial <span aria-hidden="true">↗</span></a><a href="https://github.com/TrentSterling/pid" target="_blank" rel="noopener">Source</a></nav>
   </header>
   <main>
     <div class="intro"><div><p class="eyebrow">GORILLA TAG LOCOMOTION</p><h1>Slap, pull, climb, carry. <span>Then make it physical.</span></h1><p>The default Gorilla Tag player, ported line for line, on a short course. The Unity tutorial shows how to turn the same player into a physics body with a ConfigurableJoint.</p></div><a class="tutorial-link" href="../tutorial/#14-gorilla-locomotion-then-physics">Read the tutorial chapter<small>Default Gorilla Tag to ConfigurableJoint</small></a></div>
@@ -67,6 +67,7 @@
     </section>
     <section class="notes-grid">
       <details class="panel" open><summary>What this is, and is not</summary><p><strong>Is:</strong> a JavaScript port of the update loop in Another Axiom's MIT-licensed GorillaLocomotion <code>Player.cs</code> (pinned under <code>upstream/</code>), running on axis-aligned boxes. <strong>Is not:</strong> Gorilla Tag's own tuning, which is not public, a PhysX or ConfigurableJoint simulation, or a headset test. Use the <a href="../vr/">Grab Lab</a> for a WebXR session.</p></details>
+      <details class="panel"><summary>Watch a neural net learn it</summary><p><a href="./ppo/">Monke PPO</a> lets you drive stage 1 with four keys, QWOP style, then trains a small network on the same controls in your browser.</p></details>
       <details class="panel"><summary>The scripted player</summary><p>It reads the same 8 actions and 27 observations a human adapter or learned policy would use (<code>gtag/env.js</code>) and labels what it is doing. It completes slap, push-up steps, carry, and gap from the standard spawn; it is brittle if you move the spawn, and it has no wall-climb routine yet. The tests in <code>vr/tests/gtag.mjs</code> say exactly which stages it passes.</p></details>
     </section>
   </main>

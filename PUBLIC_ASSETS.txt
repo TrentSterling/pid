@@ -47,3 +47,14 @@ gtag/env.js
 gtag/expert.js
 gtag/stages.js
 vr/tests/gtag.mjs
+gtag/ppo/index.html
+gtag/ppo/ppo.css
+gtag/ppo/app.js
+gtag/ppo/worker.js
+gtag/ppo/brain.json
+gtag/rl/nn.js
+gtag/rl/ppo.js
+gtag/rl/task.js
+gtag/rl/trainer.js
+vr/tests/monke-ppo.mjs
+scripts/train-monke.mjs

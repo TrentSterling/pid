@@ -408,5 +408,13 @@ export class GorillaPlayer {
     }
   }
 
+  /** Move the whole player (and its stuck-hand bookkeeping) by a horizontal offset, e.g. a randomised spawn. */
+  shift(dx, dz) {
+    this.position = add(this.position, V(dx, 0, dz));
+    this.lastPosition = copy(this.position);
+    this.lastHead = this.head();
+    for (const h of [0, 1]) { this.hands[h].last = this.rawHand(h); this.hands[h].previous = copy(this.hands[h].last); }
+  }
+
   isHandTouching(h) { return this.hands[h].wasTouching; }
 }

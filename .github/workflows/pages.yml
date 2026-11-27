@@ -36,7 +36,7 @@ jobs:
           for module in app.js sim.js scene.js canvas-scene.js; do
             node --input-type=module --check < "$module"
           done
-          for module in vr/*.js gtag/*.js; do
+          for module in vr/*.js gtag/*.js gtag/rl/*.js gtag/ppo/*.js; do
             node --input-type=module --check < "$module"
           done
           node tests/simulation.mjs

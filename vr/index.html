@@ -28,6 +28,11 @@
           <div id="load-error" class="load-error" role="alert" hidden></div>
         </div>
         <div class="stage-toolbar"><div class="segmented" role="group" aria-label="Input mode"><button id="guided" class="active" aria-pressed="true">Guided workout</button><button id="manual" aria-pressed="false">Try it yourself</button></div><div class="transport"><button id="pause" aria-label="Pause simulation">Pause</button><button id="reset">Reset</button><button id="kick" title="Apply a 90 N·s sideways impulse to the player">Impulse</button><button id="slow" aria-pressed="false">0.25×</button></div></div>
+        <section class="manual-panel" id="manual-panel" hidden aria-label="Desktop hand controls">
+          <div class="manual-heading"><div><h2>Desktop hands</h2><p><kbd>W A S D</kbd> move · <kbd>Q</kbd> left grip · <kbd>E</kbd> right grip · <kbd>1–5</kbd> controller</p></div><button id="reach-cube">Reach for cube</button></div>
+          <div class="hand-controls"><div class="segmented" role="group" aria-label="Edit hand"><button id="edit-left" class="active" aria-pressed="true">Left hand</button><button id="edit-right" aria-pressed="false">Right hand</button></div><button id="grip-left" aria-pressed="false">Left: open</button><button id="grip-right" aria-pressed="false">Right: open</button></div>
+          <div class="hand-sliders"><label>Across <output id="hand-x-value"></output><input id="hand-x" type="range" min="-1.25" max="1.25" step="0.01" value="-0.45"></label><label>Height <output id="hand-y-value"></output><input id="hand-y" type="range" min="-0.25" max="2.4" step="0.01" value="1.05"></label><label>Forward <output id="hand-z-value"></output><input id="hand-z" type="range" min="-1.6" max="0.6" step="0.01" value="-0.85"></label></div>
+        </section>
         <div class="experiment-controls">
           <label for="scenario">Experiment<select id="scenario"></select></label>
           <label for="locomotion">Player contact<select id="locomotion"></select></label>
@@ -37,11 +42,6 @@
           <p id="contact-description" class="contact-description"></p>
         </div>
         <div class="xr-bar"><div><b id="xr-label">Play with your hands</b><span id="xr-detail">Open this page in a WebXR headset browser. Desktop works too.</span></div><button id="enter-vr" class="accent" disabled>Checking VR…</button></div>
-        <section class="manual-panel" id="manual-panel" hidden aria-label="Desktop hand controls">
-          <div class="manual-heading"><div><h2>Desktop hands</h2><p><kbd>W A S D</kbd> move · <kbd>Q</kbd> left grip · <kbd>E</kbd> right grip · <kbd>1–5</kbd> controller</p></div><button id="reach-cube">Reach for cube</button></div>
-          <div class="hand-controls"><div class="segmented" role="group" aria-label="Edit hand"><button id="edit-left" class="active" aria-pressed="true">Left hand</button><button id="edit-right" aria-pressed="false">Right hand</button></div><button id="grip-left" aria-pressed="false">Left: open</button><button id="grip-right" aria-pressed="false">Right: open</button></div>
-          <div class="hand-sliders"><label>Across <output id="hand-x-value"></output><input id="hand-x" type="range" min="-1.25" max="1.25" step="0.01" value="-0.45"></label><label>Height <output id="hand-y-value"></output><input id="hand-y" type="range" min="-0.25" max="2.4" step="0.01" value="1.05"></label><label>Forward <output id="hand-z-value"></output><input id="hand-z" type="range" min="-1.6" max="0.6" step="0.01" value="-0.85"></label></div>
-        </section>
         <div class="metrics" aria-label="Live measurements"><div><span>Hand gap</span><b><span id="gap">0.0</span><small> cm</small></b></div><div><span>Drive force</span><b><span id="force">0</span><small> N</small></b></div><div><span>Player speed</span><b><span id="speed">0.00</span><small> m/s</small></b></div><div><span>Held objects</span><b id="held">0 / 2</b></div></div>
         <div class="trace-heading"><span>Hand gap · last 10 seconds</span><span id="limit-state">Within force limit</span></div><canvas id="trace" class="trace" aria-label="Hand tracking error over the last ten seconds"></canvas>
         <div class="motion-metrics"><span>Origin displacement <b id="drift">0.00 m</b></span><span>Contact correction <b id="correction">0.000 m</b></span><span>Contact drive <b id="contact-force">0 N</b></span><span>Last launch <b id="launch">0.00 m/s</b></span></div>

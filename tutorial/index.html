@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Generated from tutorial/tutorial.md by scripts/build-tutorial.mjs. Source SHA-256: 935fcd9753849c1f8e52df0490607eee7690e7ce63cd61ebf4795b95c443714f -->
+<!-- Generated from tutorial/tutorial.md by scripts/build-tutorial.mjs. Source SHA-256: 0b660a8a6c80f89c63ba159aec2bd49cff2842c36d6552744d910c550b016ce2 -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -25,7 +25,7 @@
       <div class="hero-copy">
         <p class="eyebrow">THE UNITY FIELD GUIDE <span aria-hidden="true">/</span> 01</p>
         <h1 id="tutorial-title">VR grabbing lab<span>locomotion, physical props, live controller A/B</span></h1>
-        <div class="guide-meta"><span>Unity 6 + OpenXR</span><span>29 min read</span><span>6 runtime scripts + Editor tools</span></div>
+        <div class="guide-meta"><span>Unity 6 + OpenXR</span><span>35 min read</span><span>6 runtime scripts + Editor tools</span></div>
         <div class="hero-actions"><a class="button primary" href="../downloads/TrontPhysicsGym-Unity.zip" download><span aria-hidden="true">↓</span> Download Unity kit</a><a class="button secondary" href="../vr/">Open WebXR demo <span aria-hidden="true">↗</span></a></div>
       </div>
       <aside class="experiment-card" aria-labelledby="experiment-title">
@@ -35,7 +35,7 @@
       </aside>
     </section>
 
-    <details class="mobile-toc"><summary>On this page <span>14 sections</span></summary><nav aria-label="Mobile table of contents"><ol class="toc-list"><li><a href="#1-from-an-empty-project-to-the-teaching-scene" data-chapter="1-from-an-empty-project-to-the-teaching-scene"><span class="toc-number" aria-hidden="true">01</span><span>Build the teaching scene</span></a></li>
+    <details class="mobile-toc"><summary>On this page <span>15 sections</span></summary><nav aria-label="Mobile table of contents"><ol class="toc-list"><li><a href="#1-from-an-empty-project-to-the-teaching-scene" data-chapter="1-from-an-empty-project-to-the-teaching-scene"><span class="toc-number" aria-hidden="true">01</span><span>Build the teaching scene</span></a></li>
 <li><a href="#2-keep-three-different-things-separate" data-chapter="2-keep-three-different-things-separate"><span class="toc-number" aria-hidden="true">02</span><span>Tracking and force paths</span></a></li>
 <li><a href="#3-what-comes-from-gorillalocomotion" data-chapter="3-what-comes-from-gorillalocomotion"><span class="toc-number" aria-hidden="true">03</span><span>The GorillaLocomotion source</span></a></li>
 <li><a href="#4-where-the-c-lives" data-chapter="4-where-the-c-lives"><span class="toc-number" aria-hidden="true">04</span><span>C# source map</span></a></li>
@@ -47,7 +47,8 @@
 <li><a href="#10-run-these-experiments-in-order" data-chapter="10-run-these-experiments-in-order"><span class="toc-number" aria-hidden="true">10</span><span>Experiments and tuning</span></a></li>
 <li><a href="#11-troubleshooting" data-chapter="11-troubleshooting"><span class="toc-number" aria-hidden="true">11</span><span>Troubleshooting</span></a></li>
 <li><a href="#12-quest-build-and-the-webxr-companion" data-chapter="12-quest-build-and-the-webxr-companion"><span class="toc-number" aria-hidden="true">12</span><span>Quest, WebXR, acceptance</span></a></li>
-<li><a href="#13-architecture-and-replay" data-chapter="13-architecture-and-replay"><span class="toc-number" aria-hidden="true">+</span><span>Architecture and replay</span></a></li>
+<li><a href="#13-architecture-and-replay" data-chapter="13-architecture-and-replay"><span class="toc-number" aria-hidden="true">13</span><span>Architecture and replay</span></a></li>
+<li><a href="#14-gorilla-locomotion-then-physics" data-chapter="14-gorilla-locomotion-then-physics"><span class="toc-number" aria-hidden="true">14</span><span>Gorilla, then physics</span></a></li>
 <li><a href="#credits-and-foundations" data-chapter="credits-and-foundations"><span class="toc-number" aria-hidden="true">+</span><span>Credits and foundations</span></a></li></ol></nav></details>
 
     <div class="document-layout">
@@ -63,7 +64,8 @@
 <li><a href="#10-run-these-experiments-in-order" data-chapter="10-run-these-experiments-in-order"><span class="toc-number" aria-hidden="true">10</span><span>Experiments and tuning</span></a></li>
 <li><a href="#11-troubleshooting" data-chapter="11-troubleshooting"><span class="toc-number" aria-hidden="true">11</span><span>Troubleshooting</span></a></li>
 <li><a href="#12-quest-build-and-the-webxr-companion" data-chapter="12-quest-build-and-the-webxr-companion"><span class="toc-number" aria-hidden="true">12</span><span>Quest, WebXR, acceptance</span></a></li>
-<li><a href="#13-architecture-and-replay" data-chapter="13-architecture-and-replay"><span class="toc-number" aria-hidden="true">+</span><span>Architecture and replay</span></a></li>
+<li><a href="#13-architecture-and-replay" data-chapter="13-architecture-and-replay"><span class="toc-number" aria-hidden="true">13</span><span>Architecture and replay</span></a></li>
+<li><a href="#14-gorilla-locomotion-then-physics" data-chapter="14-gorilla-locomotion-then-physics"><span class="toc-number" aria-hidden="true">14</span><span>Gorilla, then physics</span></a></li>
 <li><a href="#credits-and-foundations" data-chapter="credits-and-foundations"><span class="toc-number" aria-hidden="true">+</span><span>Credits and foundations</span></a></li></ol></nav><div class="sidebar-links"><a href="../vr/">Try the Grab Lab <span aria-hidden="true">↗</span></a><a href="./tutorial.md" download>Download this guide <span aria-hidden="true">↓</span></a><p>Read the explanation, then test the feel.</p></div></div></aside>
       <main id="tutorial-content" class="doc-body" tabindex="-1" aria-label="Complete Unity VR tutorial">
 <p class="lead">Build a small Unity VR playground, pick up a real Rigidbody, and switch its controller <strong>while the object is still in your hand</strong>. Compare a native ConfigurableJoint, relative-velocity PD, and backward PD. Press the same cube against the same wall, rotate it, release it, and decide which feels better in a headset.</p>
@@ -612,6 +614,100 @@ Vector3 acceleration = (kp * g) * error
 <p>For a moving support, store the contact relative to the support and reconstruct it in world space as that support moves. Point velocity includes both translation and rotation. Unity’s <a href="https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Rigidbody.GetPointVelocity.html">GetPointVelocity</a> accounts for angular velocity.</p>
 <p>Release velocity must include carrier motion once. A world-space velocity estimate may already contain it; adding a second full carrier velocity invents an extra boost. The Unity teaching motor has support-relative contact data, but translating/rotating-platform behavior still needs runtime acceptance. A collider moved directly by its transform also needs a deliberate velocity estimate if the physics body does not report the intended motion. The browser room’s supports remain static.</p>
 <p>Ziplines, portals, moving-platform scenes, network authority, fully dynamic hand proxies and physical-headset performance are not completed features of this release. They need their own geometry, velocity ownership and acceptance tests. The current lab supplies controlled local experiments and exportable evidence for that work.</p>
+<h2 id="14-gorilla-locomotion-then-physics" tabindex="-1">14. Gorilla locomotion, then physics<a class="heading-link" href="#14-gorilla-locomotion-then-physics" aria-label="Link to 14. Gorilla locomotion, then physics">#</a></h2>
+<p>This chapter is the path this project is for: start from the popular default Gorilla Tag player, understand why it moves, then make it physics-based with a ConfigurableJoint and a few supporting tricks. The <a href="../gtag/">Gorilla course</a> is the Three.js half. It runs the default locomotion; the Unity half below is where it becomes physical.</p>
+<blockquote>
+<p><strong>What has been verified.</strong> The JavaScript port and the course tests run in Node and a browser. The Unity code in this chapter is design guidance: it was <strong>not</strong> compiled in Unity or tried in a headset while writing. Treat the snippets as a starting point and check joint frames with chapter 7.</p>
+</blockquote>
+<h3 id="the-default-player-does-not-use-forces" tabindex="-1">The default player does not use forces<a class="heading-link" href="#the-default-player-does-not-use-forces" aria-label="Link to The default player does not use forces">#</a></h3>
+<p>In <code>Player.cs</code> there is a Rigidbody, but locomotion is not force-based. Each frame the player sweeps a small sphere for each hand toward the tracked hand, remembers where it hit, and moves the whole player by the opposite of the stuck hand’s motion. Gravity and the launch come from the Rigidbody only because the script writes its velocity. That is why it feels crisp, and also why it is hard to mix with joints, held objects or other forces.</p>
+<p>The course page ports that loop to plain JavaScript (<code>gtag/gorilla.js</code>) so you can read it next to the C#:</p>
+<div class="table-wrap"><div class="table-scroll" tabindex="0" role="region" aria-label="The default player does not use forces table"><table>
+<thead>
+<tr>
+<th scope="col"><code>Player.cs</code></th>
+<th scope="col"><code>gtag/gorilla.js</code></th>
+<th scope="col">What it does</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>CurrentLeftHandPosition()</code></td>
+<td><code>rawHand()</code></td>
+<td>The tracked hand, clamped to <code>maxArmLength</code> from the head.</td>
+</tr>
+<tr>
+<td><code>IterativeCollisionSphereCast</code></td>
+<td><code>iterativeSphereCast()</code></td>
+<td>Cast the hand, then slide a small fraction along the surface.</td>
+</tr>
+<tr>
+<td><code>firstIterationLeftHand</code></td>
+<td><code>first[h]</code> in <code>step()</code></td>
+<td>If the hand was already touching, its zero point is where it last stuck. Otherwise the zero point is the hit position.</td>
+</tr>
+<tr>
+<td>average or add</td>
+<td><code>touchBoth()</code></td>
+<td>Both hands stuck: average the two. One hand: use it whole.</td>
+</tr>
+<tr>
+<td>head check</td>
+<td><code>hr</code> in <code>step()</code></td>
+<td>Stop a move that would put the head through geometry.</td>
+</tr>
+<tr>
+<td><code>StoreVelocities()</code></td>
+<td>history ring in <code>step()</code></td>
+<td>Average the player’s velocity over <code>velocityHistorySize</code> frames.</td>
+</tr>
+<tr>
+<td><code>velocityLimit</code>, <code>jumpMultiplier</code>, <code>maxJumpSpeed</code></td>
+<td>the launch block</td>
+<td>While touching, assign the averaged velocity times the multiplier, capped.</td>
+</tr>
+<tr>
+<td><code>unStickDistance</code></td>
+<td>the unstick block</td>
+<td>Release a hand that is far from its stuck point and has a clear line to the head.</td>
+</tr>
+</tbody></table>
+</div><div class="table-hint" aria-hidden="true">Swipe or scroll horizontally to see the full table</div></div>
+<p>The port keeps the same order of operations. It differs in ways worth knowing: the world is axis-aligned boxes, the casts are exact box sweeps, the Rigidbody is a small gravity and box-hull integrator, and the numeric defaults are the ones commonly used in clone tutorials, not Gorilla Tag’s own tuning, which is not public. Source: <a href="https://github.com/Another-Axiom/GorillaLocomotion/blob/bc42e959cf3e69178f9147d89bd3ffeab1c432c4/Player.cs">Another Axiom’s MIT-licensed <code>Player.cs</code></a>, pinned under <code>upstream/</code>.</p>
+<h3 id="three-things-you-will-notice-on-the-course" tabindex="-1">Three things you will notice on the course<a class="heading-link" href="#three-things-you-will-notice-on-the-course" aria-label="Link to Three things you will notice on the course">#</a></h3>
+<ol>
+<li><strong>Pressing hard launches you.</strong> Plant a hand on the floor too fast and its correction becomes upward velocity. Ease it down until it sticks, then pull. The scripted player does this and the tests check it.</li>
+<li><strong>A stuck hand sticks where it touched.</strong> To climb a wall you cannot slide a hand up it. Lift the hand off, move it up in the air, then press in. Pressing deeper each frame pushes you away from the wall; the scripted player has no reliable wall routine yet (this is the likely reason), so that stage is by hand.</li>
+<li><strong>Two hands average.</strong> Two stuck hands pulling the same way move you as far as one, not twice as far. There is a test for it.</li>
+</ol>
+<h3 id="from-default-to-physical-in-steps" tabindex="-1">From default to physical, in steps<a class="heading-link" href="#from-default-to-physical-in-steps" aria-label="Link to From default to physical, in steps">#</a></h3>
+<p>Keep the original working as a reference and change one thing at a time. Chapter 3 explains why only one component may own the player’s velocity.</p>
+<p><strong>Step 1. Give the hand a body.</strong> Add a Rigidbody (mass 1 to 2, continuous collision) and a sphere collider on the world layer. The tracked hand stays a transform that only describes where the player’s hand is.</p>
+<p><strong>Step 2. Tether the hand body to the player with a ConfigurableJoint.</strong> The joint’s drive is the force that pulls the physical hand toward the tracked hand.</p>
+<div class="code-block"><div class="code-header"><span>C#</span><button class="copy-code" type="button" data-copy-code="code-5" aria-label="Copy C# code example 5" hidden>Copy code</button></div><pre tabindex="0" aria-label="C# code example 5"><code id="code-5" class="language-csharp">var tether = handBody.gameObject.AddComponent&lt;ConfigurableJoint&gt;();
+tether.connectedBody = playerBody;
+tether.autoConfigureConnectedAnchor = false;
+tether.connectedAnchor = Vector3.zero;
+tether.xMotion = tether.yMotion = tether.zMotion = ConfigurableJointMotion.Free;
+var drive = new JointDrive { positionSpring = spring, positionDamper = damper, maximumForce = maxForce };
+tether.xDrive = tether.yDrive = tether.zDrive = drive;
+// Each FixedUpdate, set tether.targetPosition from the tracked hand in the player&#39;s frame.
+// The sign and frame of targetPosition are easy to get backwards: use the checks in chapter 7.</code></pre></div>
+<p>Because a joint applies equal and opposite force, a hand that is blocked by the world pulls the player the other way. That is the physical version of “the stuck hand moves the player”. It also means the hand has a finite strength (<code>maximumForce</code>) instead of an infinite one.</p>
+<p><strong>Step 3. Make a hand stick.</strong> The default player sticks by geometry. In physics, pin the hand body to the world point it touched with a second joint that has no connected body, and drop the pin when the tracked hand is farther than <code>unStickDistance</code> from it.</p>
+<div class="code-block"><div class="code-header"><span>C#</span><button class="copy-code" type="button" data-copy-code="code-6" aria-label="Copy C# code example 6" hidden>Copy code</button></div><pre tabindex="0" aria-label="C# code example 6"><code id="code-6" class="language-csharp">var pin = handBody.gameObject.AddComponent&lt;ConfigurableJoint&gt;(); // connectedBody == null: world
+pin.autoConfigureConnectedAnchor = false;
+pin.anchor = handBody.transform.InverseTransformPoint(contactPoint);
+pin.connectedAnchor = contactPoint;                              // world space
+pin.xMotion = pin.yMotion = pin.zMotion = ConfigurableJointMotion.Locked;</code></pre></div>
+<p>Pulling the tracked hand back now stretches the tether, and the tether’s reaction moves the player. The averaging of two hands falls out of the solver instead of being coded.</p>
+<p><strong>Step 4. Replace the velocity write.</strong> Delete the launch assignment. Momentum now comes from the reaction forces. If you want the arcade jump back, scale the tether’s maximum force or the player’s inverse mass seen by the joint (<code>connectedMassScale</code>) as a tuning knob, not a velocity overwrite. The kit already has this trade-off for grabbing in chapters 5 to 7.</p>
+<p><strong>Step 5. Held objects load the player.</strong> Gripped objects use one of the grab controllers from chapter 5, with the player as the other body. A heavy object now costs you launch and speed because it is part of the same force balance. The course’s carry stage shows the simplest approximation of that: a gripped cube shares your launch momentum (<code>bodyMass / (bodyMass + heldMass)</code>). It is a teaching shortcut, not a joint.</p>
+<p><strong>Step 6. Check the timing.</strong> Run hand and body logic in <code>FixedUpdate</code>, interpolate the visuals, and keep solver iterations high enough that a pinned hand does not stretch. Chapter 9 covers gravity and release behaviour.</p>
+<h3 id="what-is-in-the-kit-and-what-is-not" tabindex="-1">What is in the kit and what is not<a class="heading-link" href="#what-is-in-the-kit-and-what-is-not" aria-label="Link to What is in the kit and what is not">#</a></h3>
+<p>The kit’s <code>GymMotor</code> has <code>ForceServo</code>, <code>CastCorrection</code> and <code>Off</code> for empty-hand locomotion, and <code>GymHand</code> has a real ConfigurableJoint for grabbing. The tether-plus-pin hand in Steps 1 to 3 is <strong>not in the kit yet</strong>. It is the next thing to build and test in Unity, and the course gives you the behaviour to compare against.</p>
+<h3 id="the-scripted-player-and-the-interface" tabindex="-1">The scripted player and the interface<a class="heading-link" href="#the-scripted-player-and-the-interface" aria-label="Link to The scripted player and the interface">#</a></h3>
+<p>The course page runs a scripted player through the same 8-number action and 27-number observation vector (<code>gtag/env.js</code>) that a human adapter or a learned policy would use: left and right hand targets as head-relative offsets, plus a grip each. It labels what it is doing (“walk: right hand pull”, “push-up: press”). Because hands are commanded as targets, the same player can later drive the Unity tether in Step 2 unchanged, and you can compare the default and physical versions on the same stages.</p>
+<p>It completes slap, push-up steps, carry and gap from the standard spawn. It is brittle if the spawn moves, and it does not climb the wall. The tests in <code>vr/tests/gtag.mjs</code> list what passes. No neural network is included: the interface is the boundary a trained policy would plug into.</p>
 <h2 id="credits-and-foundations" tabindex="-1">Credits and foundations<a class="heading-link" href="#credits-and-foundations" aria-label="Link to Credits and foundations">#</a></h2>
 <p><strong>Trent Sterling / Tront and ChatGPT</strong> built the teaching lab, with the discussion and experiments from <strong>Ducky / Duck (SCUG)</strong>, <strong>FireBlast</strong>, and <strong>CometDev</strong>.</p>
 <p><strong>Digital Opus is the primary technical inspiration:</strong> <a href="https://digitalopus.ca/site/pd-controllers/">Controlling Objects With Forces and Torques I</a>, <a href="https://digitalopus.ca/site/controlling-objects-with-forces-and-torques-part-2/">Part II</a>, and <a href="https://github.com/Phong13/UsefulUtils">UsefulUtils</a>. David Wu’s backward PD presentation and the work of Jie Tan, C. Karen Liu, and Greg Turk provide related controller foundations.</p>

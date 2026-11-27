@@ -39,3 +39,11 @@ downloads/TrontPhysicsGym-Unity.zip
 ARCHITECTURE.md
 vr/experiments.js
 vr/experiment-worker.js
+gtag/index.html
+gtag/gtag.css
+gtag/app.js
+gtag/gorilla.js
+gtag/env.js
+gtag/expert.js
+gtag/stages.js
+vr/tests/gtag.mjs

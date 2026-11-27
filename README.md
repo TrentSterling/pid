@@ -1,6 +1,6 @@
 # Physics Gym
 
-**[Controller gym](https://tront.xyz/pid/)** · **[WebXR grab lab](https://tront.xyz/pid/vr/)** · **[Full Unity C# tutorial](https://tront.xyz/pid/tutorial/)** · **[Download the Unity starter](https://tront.xyz/pid/downloads/TrontPhysicsGym-Unity.zip)**
+**[Controller gym](https://tront.xyz/pid/)** · **[WebXR grab lab](https://tront.xyz/pid/vr/)** · **[Gorilla course](https://tront.xyz/pid/gtag/)** · **[Full Unity C# tutorial](https://tront.xyz/pid/tutorial/)** · **[Download the Unity starter](https://tront.xyz/pid/downloads/TrontPhysicsGym-Unity.zip)**
 
 A practical playground for VR locomotion and grabbing. Watch eight simulated players compare force controllers, then pick up a Rigidbody in the WebXR or Unity lab and **switch controllers while the same object stays in your hand**.
 
@@ -10,6 +10,7 @@ A practical playground for VR locomotion and grabbing. Watch eight simulated pla
 | --- | --- |
 | [Eight-lane controller gym](https://tront.xyz/pid/) | Compare springs, velocity damping, backward PD, prediction and feedforward under shared inputs. |
 | [Grab Lab](https://tront.xyz/pid/vr/) | Use a headset, adjustable desktop hands, or a repeatable guided workout. Hold objects, switch the drive live, press against walls, and climb fixed grips. |
+| [Gorilla course](https://tront.xyz/pid/gtag/) | The default Gorilla Tag locomotion ported to JavaScript on a five-stage course, with held cubes and a scripted player. Companion to tutorial chapter 14. |
 | [Unity tutorial](https://tront.xyz/pid/tutorial/) | Go from an empty Unity 6/OpenXR project to a generated VR scene with real ConfigurableJoint and custom PD grabbing. |
 | [Unity source kit](unity/) | Six runtime components, an Editor scene builder, and math checks. The ZIP includes the full tutorial and pinned original GorillaLocomotion reference. |
 

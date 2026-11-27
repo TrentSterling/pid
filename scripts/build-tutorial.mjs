@@ -116,11 +116,11 @@ const shortTitles = [
   'Build the teaching scene', 'Tracking and force paths', 'The GorillaLocomotion source',
   'C# source map', 'Four grab controllers', 'Feedforward and filtering',
   'Joint frames and rotation', 'FireBlast’s settings', 'Timing, gravity, release',
-  'Experiments and tuning', 'Troubleshooting', 'Quest, WebXR, acceptance', 'Architecture and replay', 'Credits and foundations'
+  'Experiments and tuning', 'Troubleshooting', 'Quest, WebXR, acceptance', 'Architecture and replay', 'Gorilla, then physics', 'Credits and foundations'
 ];
 
 function tableOfContents() {
-  return `<ol class="toc-list">${chapters.map((chapter, index) => `<li><a href="#${chapter.id}" data-chapter="${chapter.id}"><span class="toc-number" aria-hidden="true">${index < 12 ? String(index + 1).padStart(2, '0') : '+'}</span><span>${escape(shortTitles[index] || chapter.title.replace(/^\d+\.\s*/, ''))}</span></a></li>`).join('\n')}</ol>`;
+  return `<ol class="toc-list">${chapters.map((chapter, index) => `<li><a href="#${chapter.id}" data-chapter="${chapter.id}"><span class="toc-number" aria-hidden="true">${index < 14 ? String(index + 1).padStart(2, '0') : '+'}</span><span>${escape(shortTitles[index] || chapter.title.replace(/^\d+\.\s*/, ''))}</span></a></li>`).join('\n')}</ol>`;
 }
 
 const html = `<!doctype html>

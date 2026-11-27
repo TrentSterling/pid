@@ -396,6 +396,87 @@ Release velocity must include carrier motion once. A world-space velocity estima
 
 Ziplines, portals, moving-platform scenes, network authority, fully dynamic hand proxies and physical-headset performance are not completed features of this release. They need their own geometry, velocity ownership and acceptance tests. The current lab supplies controlled local experiments and exportable evidence for that work.
 
+## 14. Gorilla locomotion, then physics
+
+This chapter is the path this project is for: start from the popular default Gorilla Tag player, understand why it moves, then make it physics-based with a ConfigurableJoint and a few supporting tricks. The [Gorilla course](../gtag/) is the Three.js half. It runs the default locomotion; the Unity half below is where it becomes physical.
+
+> **What has been verified.** The JavaScript port and the course tests run in Node and a browser. The Unity code in this chapter is design guidance: it was **not** compiled in Unity or tried in a headset while writing. Treat the snippets as a starting point and check joint frames with chapter 7.
+
+### The default player does not use forces
+
+In `Player.cs` there is a Rigidbody, but locomotion is not force-based. Each frame the player sweeps a small sphere for each hand toward the tracked hand, remembers where it hit, and moves the whole player by the opposite of the stuck hand’s motion. Gravity and the launch come from the Rigidbody only because the script writes its velocity. That is why it feels crisp, and also why it is hard to mix with joints, held objects or other forces.
+
+The course page ports that loop to plain JavaScript (`gtag/gorilla.js`) so you can read it next to the C#:
+
+| `Player.cs` | `gtag/gorilla.js` | What it does |
+| --- | --- | --- |
+| `CurrentLeftHandPosition()` | `rawHand()` | The tracked hand, clamped to `maxArmLength` from the head. |
+| `IterativeCollisionSphereCast` | `iterativeSphereCast()` | Cast the hand, then slide a small fraction along the surface. |
+| `firstIterationLeftHand` | `first[h]` in `step()` | If the hand was already touching, its zero point is where it last stuck. Otherwise the zero point is the hit position. |
+| average or add | `touchBoth()` | Both hands stuck: average the two. One hand: use it whole. |
+| head check | `hr` in `step()` | Stop a move that would put the head through geometry. |
+| `StoreVelocities()` | history ring in `step()` | Average the player’s velocity over `velocityHistorySize` frames. |
+| `velocityLimit`, `jumpMultiplier`, `maxJumpSpeed` | the launch block | While touching, assign the averaged velocity times the multiplier, capped. |
+| `unStickDistance` | the unstick block | Release a hand that is far from its stuck point and has a clear line to the head. |
+
+The port keeps the same order of operations. It differs in ways worth knowing: the world is axis-aligned boxes, the casts are exact box sweeps, the Rigidbody is a small gravity and box-hull integrator, and the numeric defaults are the ones commonly used in clone tutorials, not Gorilla Tag’s own tuning, which is not public. Source: [Another Axiom’s MIT-licensed `Player.cs`](https://github.com/Another-Axiom/GorillaLocomotion/blob/bc42e959cf3e69178f9147d89bd3ffeab1c432c4/Player.cs), pinned under `upstream/`.
+
+### Three things you will notice on the course
+
+1. **Pressing hard launches you.** Plant a hand on the floor too fast and its correction becomes upward velocity. Ease it down until it sticks, then pull. The scripted player does this and the tests check it.
+2. **A stuck hand sticks where it touched.** To climb a wall you cannot slide a hand up it. Lift the hand off, move it up in the air, then press in. Pressing deeper each frame pushes you away from the wall; the scripted player has no reliable wall routine yet (this is the likely reason), so that stage is by hand.
+3. **Two hands average.** Two stuck hands pulling the same way move you as far as one, not twice as far. There is a test for it.
+
+### From default to physical, in steps
+
+Keep the original working as a reference and change one thing at a time. Chapter 3 explains why only one component may own the player’s velocity.
+
+**Step 1. Give the hand a body.** Add a Rigidbody (mass 1 to 2, continuous collision) and a sphere collider on the world layer. The tracked hand stays a transform that only describes where the player’s hand is.
+
+**Step 2. Tether the hand body to the player with a ConfigurableJoint.** The joint’s drive is the force that pulls the physical hand toward the tracked hand.
+
+```csharp
+var tether = handBody.gameObject.AddComponent<ConfigurableJoint>();
+tether.connectedBody = playerBody;
+tether.autoConfigureConnectedAnchor = false;
+tether.connectedAnchor = Vector3.zero;
+tether.xMotion = tether.yMotion = tether.zMotion = ConfigurableJointMotion.Free;
+var drive = new JointDrive { positionSpring = spring, positionDamper = damper, maximumForce = maxForce };
+tether.xDrive = tether.yDrive = tether.zDrive = drive;
+// Each FixedUpdate, set tether.targetPosition from the tracked hand in the player's frame.
+// The sign and frame of targetPosition are easy to get backwards: use the checks in chapter 7.
+```
+
+Because a joint applies equal and opposite force, a hand that is blocked by the world pulls the player the other way. That is the physical version of “the stuck hand moves the player”. It also means the hand has a finite strength (`maximumForce`) instead of an infinite one.
+
+**Step 3. Make a hand stick.** The default player sticks by geometry. In physics, pin the hand body to the world point it touched with a second joint that has no connected body, and drop the pin when the tracked hand is farther than `unStickDistance` from it.
+
+```csharp
+var pin = handBody.gameObject.AddComponent<ConfigurableJoint>(); // connectedBody == null: world
+pin.autoConfigureConnectedAnchor = false;
+pin.anchor = handBody.transform.InverseTransformPoint(contactPoint);
+pin.connectedAnchor = contactPoint;                              // world space
+pin.xMotion = pin.yMotion = pin.zMotion = ConfigurableJointMotion.Locked;
+```
+
+Pulling the tracked hand back now stretches the tether, and the tether’s reaction moves the player. The averaging of two hands falls out of the solver instead of being coded.
+
+**Step 4. Replace the velocity write.** Delete the launch assignment. Momentum now comes from the reaction forces. If you want the arcade jump back, scale the tether’s maximum force or the player’s inverse mass seen by the joint (`connectedMassScale`) as a tuning knob, not a velocity overwrite. The kit already has this trade-off for grabbing in chapters 5 to 7.
+
+**Step 5. Held objects load the player.** Gripped objects use one of the grab controllers from chapter 5, with the player as the other body. A heavy object now costs you launch and speed because it is part of the same force balance. The course’s carry stage shows the simplest approximation of that: a gripped cube shares your launch momentum (`bodyMass / (bodyMass + heldMass)`). It is a teaching shortcut, not a joint.
+
+**Step 6. Check the timing.** Run hand and body logic in `FixedUpdate`, interpolate the visuals, and keep solver iterations high enough that a pinned hand does not stretch. Chapter 9 covers gravity and release behaviour.
+
+### What is in the kit and what is not
+
+The kit’s `GymMotor` has `ForceServo`, `CastCorrection` and `Off` for empty-hand locomotion, and `GymHand` has a real ConfigurableJoint for grabbing. The tether-plus-pin hand in Steps 1 to 3 is **not in the kit yet**. It is the next thing to build and test in Unity, and the course gives you the behaviour to compare against.
+
+### The scripted player and the interface
+
+The course page runs a scripted player through the same 8-number action and 27-number observation vector (`gtag/env.js`) that a human adapter or a learned policy would use: left and right hand targets as head-relative offsets, plus a grip each. It labels what it is doing (“walk: right hand pull”, “push-up: press”). Because hands are commanded as targets, the same player can later drive the Unity tether in Step 2 unchanged, and you can compare the default and physical versions on the same stages.
+
+It completes slap, push-up steps, carry and gap from the standard spawn. It is brittle if the spawn moves, and it does not climb the wall. The tests in `vr/tests/gtag.mjs` list what passes. No neural network is included: the interface is the boundary a trained policy would plug into.
+
 ## Credits and foundations
 
 **Trent Sterling / Tront and ChatGPT** built the teaching lab, with the discussion and experiments from **Ducky / Duck (SCUG)**, **FireBlast**, and **CometDev**.
